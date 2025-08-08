@@ -9,18 +9,11 @@ const axios = require("axios");
 const cors = require("cors");
 const app = express();
 const fs = require("fs");
-const { callbackify } = require("util");
-const { keyboard } = require("telegraf/markup");
-const { log } = require("console");
 
 const obj = JSON.parse(fs.readFileSync("log.json"));
 
 const followers = obj.filter((item) => item.category === "Telegram");
-const views = obj.filter(
-  (item) =>
-    item.name.includes("росмотр") &&
-    item.category === "Telegram реакции/просмотры"
-);
+const views = obj.filter( (item) => item.name.includes("росмотр") && item.category === "Telegram реакции/просмотры");
 const reactions = obj.filter(
   (item) =>
     item.name.includes("еакци") &&
@@ -138,7 +131,7 @@ const writeHelp = new Scenes.WizardScene(
   "write_help",
   (ctx) => {
     ctx.session.write_user = true;
-    ctx.reply("<b>Напишите о вашей проблеме, можно прикрепить фото.</b>", {
+    ctx.reply("<b>Можете задать любой вопрос, если возникли трудности. Также можно прикрепить фото.</b>", {
       parse_mode: "HTML",
       reply_markup: {
         inline_keyboard: [
@@ -265,7 +258,13 @@ const orderFollowers = new Scenes.WizardScene(
   "order_followers",
   (ctx) => {
     ctx.session.order_followers = true;
-
+    
+    if (ctx.callbackQuery?.data === "cancel_scena" ) {
+      ctx.session.order_followers = false;
+      ctx.deleteMessage();
+      return ctx.scene.leave();
+    }
+    
     const currentService = followers.find((item) => item.service == ctx.wizard.state.service);
 
     if (ctx.message?.text >= currentService.min && ctx.message?.text <= currentService.max) {
@@ -282,7 +281,7 @@ const orderFollowers = new Scenes.WizardScene(
               [
                 {
                   text: "❌ Отменить",
-                  callback_data: "cancel_order_followers",
+                  callback_data: "cancel_scena",
                 },
               ],
             ],
@@ -303,10 +302,7 @@ const orderFollowers = new Scenes.WizardScene(
           "ru-RU"
         )}</blockquote>
 <blockquote>Минимум: ${currentService.min.toLocaleString("ru-RU")}</blockquote>
-<blockquote>Максимум: ${currentService.max.toLocaleString("ru-RU")}</blockquote>
-
-
-    `,
+<blockquote>Максимум: ${currentService.max.toLocaleString("ru-RU")}</blockquote>`,
         {
           parse_mode: "HTML",
           reply_markup: {
@@ -314,7 +310,7 @@ const orderFollowers = new Scenes.WizardScene(
               [
                 {
                   text: "❌ Отменить",
-                  callback_data: "cancel_order_followers",
+                  callback_data: "cancel_scena",
                 },
               ],
             ],
@@ -324,14 +320,22 @@ const orderFollowers = new Scenes.WizardScene(
     }
   },
   (ctx) => {
-    console.log(ctx.wizard.state);
+    console.log(ctx.callbackQuery?.data)
+    if (ctx.callbackQuery?.data === "cancel_scena" ) {
+      ctx.session.order_followers = false;
+      ctx.deleteMessage();
+      return ctx.scene.leave();
+    }
+    
+    //console.log(ctx.wizard.state);
     const currentService = followers.find(
       (item) => item.service == ctx.wizard.state.service
     );
 
     if (ctx.message?.text.includes("https://t.me/")) {
+      const idOrder = refCode();
       ctx.reply(
-        `<b>📝 Оплатите заказ:</b>
+        `<b>📝 Оплатите заказ: #${idOrder}</b>
 
 <blockquote>Услуга: ${currentService.name}</blockquote>
 <blockquote>Ваше колличество: ${ctx.wizard.state.amount.toLocaleString(
@@ -340,7 +344,7 @@ const orderFollowers = new Scenes.WizardScene(
 <blockquote>Сумма к списанию: ${ctx.wizard.state.pay.toLocaleString(
           "ru-RU"
         )}₽</blockquote>
-<blockquote>Сылка: ${ctx.message?.text}₽</blockquote>
+<blockquote>Сылка: ${ctx.message?.text}</blockquote>
        
         
             `,
@@ -351,7 +355,7 @@ const orderFollowers = new Scenes.WizardScene(
               [
                 {
                   text: "💳 Оплатить",
-                  callback_data: "cancel_order_followers",
+                  callback_data: "pay",
                 },
               ],
             ],
@@ -375,7 +379,7 @@ const orderFollowers = new Scenes.WizardScene(
               [
                 {
                   text: "❌ Отменить",
-                  callback_data: "cancel_order_followers",
+                  callback_data: "cancel_scena",
                 },
               ],
             ],
@@ -383,27 +387,6 @@ const orderFollowers = new Scenes.WizardScene(
         }
       );
     }
-  },
-  (ctx) => {
-    const { id, username } = ctx.from;
-
-    if (
-      (ctx.callbackQuery?.data === "help" && ctx.session.write_user) ||
-      ctx.callbackQuery?.data === "cancel_write_user_help" ||
-      ctx.callbackQuery?.data === "cancel_write_help"
-    ) {
-      ctx.session.write_user = false;
-      ctx.deleteMessage();
-      return ctx.scene.leave();
-    }
-
-    ctx.session.write_user = false;
-
-
-    ctx.reply(`✅ <b>Готово! Ваша заявка будет расмотренна.</b>`, {
-      parse_mode: "HTML",
-    });
-    return ctx.scene.leave();
   }
 );
 
@@ -436,7 +419,6 @@ bot.action("help", async (ctx) => {
 });
 
 bot.action("menu", async (ctx) => {
-  //await ctx.deleteMessage();
   ctx.replyWithPhoto("https://i.ibb.co/qYJqZjqG/card-1001.jpg", {
     caption: "Выберите один из представленных товаров.",
     parse_mode: "HTML",
@@ -447,7 +429,7 @@ bot.action("menu", async (ctx) => {
           { text: "👀 Просмотры", callback_data: `buy_views` },
         ],
         [
-          { text: "❤️ Реакций", callback_data: `buy_reactions` },
+          { text: "❤️ Реакции", callback_data: `buy_reactions` },
           { text: "☄️ Буст Канала", callback_data: `buy_boosts` },
         ],
         [{ text: "⭐ Звезды", callback_data: `buy_stars` }],
@@ -474,7 +456,7 @@ bot.action("menu_back", async (ctx) => {
             { text: "👀 Просмотры", callback_data: `buy_views` },
           ],
           [
-            { text: "❤️ Реакций", callback_data: `buy_reactions` },
+            { text: "❤️ Реакции", callback_data: `buy_reactions` },
             { text: "☄️ Буст Канала", callback_data: `buy_boosts` },
           ],
           [{ text: "⭐ Звезды", callback_data: `buy_stars` }],
@@ -487,8 +469,6 @@ bot.action("menu_back", async (ctx) => {
 });
 
 bot.action("pay_balance", async (ctx) => {
-  //await ctx.deleteMessage();
-
   await ctx.editMessageMedia(
     {
       type: "photo",
@@ -500,32 +480,14 @@ bot.action("pay_balance", async (ctx) => {
       reply_markup: {
         inline_keyboard: [
           [
-            { text: "💳 ЮMoney", callback_data: `pay_umoney` },
+            { text: "💳 Карта", callback_data: `pay_umoney` },
             { text: "🧠 Крипта", callback_data: `pay_crypto` },
           ],
-          [{ text: "⭐ Звезды", callback_data: `pay_stars`, pay: true }],
           [{ text: "<< Назад", callback_data: `menu_back` }],
         ],
       },
     }
   );
-  // await ctx.replyWithPhoto(
-  //   "https://i.ibb.co/yBXRdX1R/IMG-20250513-121336.jpg",
-  //   {
-  //     caption: "<b>💸 Это все способы пополнения баланса.</b>",
-  //     parse_mode: "HTML",
-  //     reply_markup: {
-  //       inline_keyboard: [
-  //         [
-  //           { text: "💳 ЮMoney", callback_data: `pay_umoney` },
-  //           { text: "🧠 Крипта", callback_data: `pay_crypto` },
-  //         ],
-  //         [{ text: "⭐ Звезды", callback_data: `pay_stars`, pay: true }],
-  //         [{ text: "<< Назад", callback_data: `menu_back` }],
-  //       ],
-  //     },
-  //   }
-  // );
 });
 
 bot.action("pay_umoney", async (ctx) => {
@@ -556,59 +518,11 @@ bot.action("pay_umoney", async (ctx) => {
   );
 });
 
-bot.action("mini_app", async (ctx) => {
-  await ctx.editMessageMedia(
-    {
-      type: "photo",
-      media: "https://i.ibb.co/sp8gcRrG/card-1006.jpg",
-      caption: "<b>📱 Это мини приложения.</b>",
-      parse_mode: "HTML",
-    },
-    {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: "Кликер Notcoin",
-              web_app: { url: "https://notcoin-ids.vercel.app/" },
-            },
-            {
-              text: "Казино кейсы",
-              web_app: { url: "https://notcoin-ids.vercel.app/" },
-            },
-          ],
-          [
-            {
-              text: "Нейронка",
-              web_app: { url: "https://notcoin-ids.vercel.app/" },
-            },
-          ],
-          [{ text: "<< Назад", callback_data: "menu_back" }],
-        ],
-      },
-    }
-  );
-});
 
-bot.action("ai_menu", async (ctx) => {
-  ctx.session.ai_disabled = true;
-  await ctx.editMessageMedia(
-    {
-      type: "photo",
-      media: "https://i.ibb.co/gLF9nJHw/card-1007.jpg",
-      caption:
-        "<b>📱 Задавайте любые вопросы нейросети. Если хотите закончить перписку то введите команду /stop или нажмите кнопку ниже.</b>",
-      parse_mode: "HTML",
-    },
-    {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: "Завершить диалог", callback_data: "menu_back" }],
-        ],
-      },
-    }
-  );
-});
+
+
+
+//Действия по кнопке для показа товаров накрутки
 
 bot.action("buy_followers", async (ctx) => {
   const { id } = ctx.from;
@@ -623,11 +537,15 @@ bot.action("buy_followers", async (ctx) => {
   });
 
   keyboard.push([{ text: "<< Назад", callback_data: `menu_back` }]);
-
-  await ctx.deleteMessage();
-  ctx.replyWithPhoto("https://i.ibb.co/qYJqZjqG/card-1001.jpg", {
+  
+   await ctx.editMessageMedia(
+    {
+    type: "photo",
+    media: "https://i.ibb.co/qYJqZjqG/card-1001.jpg",
     caption: "Ниже представденны тарифы и их ценны за 1 тысяу.",
-    parse_mode: "HTML",
+    parse_mode: "HTML"
+    },
+    {
     reply_markup: {
       inline_keyboard: keyboard,
     },
@@ -646,10 +564,13 @@ bot.action("buy_views", async (ctx) => {
 
   keyboard.push([{ text: "<< Назад", callback_data: `menu_back` }]);
 
-  await ctx.deleteMessage();
-  ctx.replyWithPhoto("https://i.ibb.co/qYJqZjqG/card-1001.jpg", {
+  await ctx.editMessageMedia(
+    {
+    type: "photo",
+    media: "https://i.ibb.co/qYJqZjqG/card-1001.jpg", 
     caption: "Ниже представденны тарифы и их ценны за 1 тысяу.",
-    parse_mode: "HTML",
+    parse_mode: "HTML"
+    },{
     reply_markup: {
       inline_keyboard: keyboard,
     },
@@ -668,10 +589,13 @@ bot.action("buy_reactions", async (ctx) => {
 
   keyboard.push([{ text: "<< Назад", callback_data: `menu_back` }]);
 
-  await ctx.deleteMessage();
-  ctx.replyWithPhoto("https://i.ibb.co/qYJqZjqG/card-1001.jpg", {
+  await ctx.editMessageMedia(
+    {
+    type: "photo",
+    media: "https://i.ibb.co/qYJqZjqG/card-1001.jpg", 
     caption: "Ниже представденны тарифы и их ценны за 1 тысяу.",
-    parse_mode: "HTML",
+    parse_mode: "HTML"
+    },{
     reply_markup: {
       inline_keyboard: keyboard,
     },
@@ -690,10 +614,13 @@ bot.action("buy_boosts", async (ctx) => {
 
   keyboard.push([{ text: "<< Назад", callback_data: `menu_back` }]);
 
-  await ctx.deleteMessage();
-  ctx.replyWithPhoto("https://i.ibb.co/qYJqZjqG/card-1001.jpg", {
+  await ctx.editMessageMedia(
+    {
+    type: "photo",
+    media: "https://i.ibb.co/qYJqZjqG/card-1001.jpg", 
     caption: "Ниже представденны тарифы и их ценны за 1шт.",
-    parse_mode: "HTML",
+    parse_mode: "HTML"
+    },{
     reply_markup: {
       inline_keyboard: keyboard,
     },
@@ -712,39 +639,19 @@ bot.action("buy_stars", async (ctx) => {
 
   keyboard.push([{ text: "<< Назад", callback_data: `menu_back` }]);
 
-  await ctx.deleteMessage();
-  ctx.replyWithPhoto("https://i.ibb.co/qYJqZjqG/card-1001.jpg", {
+  await ctx.editMessageMedia(
+    {
+    type: "photo",
+    media: "https://i.ibb.co/qYJqZjqG/card-1001.jpg", 
     caption: "Ниже представденны тарифы оптом за 1 тысяу",
-    parse_mode: "HTML",
+    parse_mode: "HTML"
+    },{
     reply_markup: {
       inline_keyboard: keyboard,
     },
   });
 });
 
-// [
-//   { text: "Подписчики ❌ Без гарантии = 4.8 ₽", callback_data: `buy_subs` },
-// ],
-// [
-//   { text: "Подписчики (~3 дня) = 36 ₽", callback_data: `buy_subs` },
-// ],
-// [
-//   { text: "Подписчики (~1-3 дня) = 15.1 ₽", callback_data: `buy_subs` },
-// ],
-// [
-//   { text: "Подписчики (~7 дня) = 50 ₽", callback_data: `buy_subs` },
-// ],
-// [
-//   { text: "Подписчики (30 дня) = 112 ₽", callback_data: `buy_subs` },
-// ],
-// [
-//   { text: "Подписчики (60 дня) = 170 ₽", callback_data: `buy_subs` },
-// ],
-// [
-//   { text: "Подписчики (90 дня) = 224 ₽", callback_data: `buy_subs` },
-// ],
-// [{ text: "👨‍💻 Задать вопрос", callback_data: `help` }],
-///[{ text: "👨‍💻 Задать вопрос", callback_data: `help` }],
 
 // Получение id канал для проверки подписки
 bot.on("channel_post", async (ctx) => {
@@ -770,31 +677,32 @@ bot.command("check", async (ctx) => {
   }
 });
 
-bot.action("qr_code", async (ctx) => {
-  await ctx.deleteMessage();
-  if (!ctx.session.qr_code) {
-    ctx.session.qr_code = false;
-    ctx.scene.enter("qr_code");
-  }
-});
+
 
 // Действия по нажатию кнопки из keyboard
 bot.hears("🗂️ Меню", async (ctx) => {
   await ctx.deleteMessage();
   await ctx.replyWithPhoto("https://i.ibb.co/qYJqZjqG/card-1001.jpg", {
-    caption: "Меню бота",
+    caption: "Выберите один из представленных товаров.",
+    parse_mode: "HTML",
     reply_markup: {
       inline_keyboard: [
-        [{ text: "✨ Накрутка подписчиков", callback_data: `pay_balance` }],
-        [{ text: "👀 Накрутка просмотров", callback_data: `ai_menu` }],
-        [{ text: "❤️ Накрутка реакций", callback_data: `check_sub` }],
+        [
+          { text: "✨ Подписчики", callback_data: `buy_followers` },
+          { text: "👀 Просмотры", callback_data: `buy_views` },
+        ],
+        [
+          { text: "❤️ Реакции", callback_data: `buy_reactions` },
+          { text: "☄️ Буст Канала", callback_data: `buy_boosts` },
+        ],
+        [{ text: "⭐ Звезды", callback_data: `buy_stars` }],
         [{ text: "💳 Пополнить баланс", callback_data: `pay_balance` }],
         [{ text: "👨‍💻 Задать вопрос", callback_data: `help` }],
       ],
     },
   });
 });
-bot.hears("👨‍💻 Связь с админом", async (ctx) => {
+bot.hears("👨‍💻 Задать вопрос", async (ctx) => {
   await ctx.deleteMessage();
   if (!ctx.session.write_user) {
     ctx.session.write_user = false;
@@ -871,7 +779,7 @@ bot.command("start", async (ctx) => {
 `,
     parse_mode: "HTML",
     reply_markup: {
-      inline_keyboard: [
+      keyboard: [
         [{ text: "🗂️ Меню", callback_data: `menu` }],
         [{ text: "👨 Личный кабинет", callback_data: `translate` }],
         [{ text: "👨‍💻 Задать вопрос", callback_data: `help` }],
@@ -944,21 +852,9 @@ bot.command("db", async (ctx) => {
   });
 });
 
-bot.command("stop", async (ctx) => {
-  if (ctx.session.ai_disabled) {
-    ctx.session.ai_disabled = false;
-  }
-});
 
-// bot.telegram.sendPhoto(
-//   ADMIN_ID,
-//   "https://quickchart.io/qr?text=https://best-earn.vercel.app&size=400",
-//   {
-//     caption: `🔔 <b>Ответ Администратора</b> >
-//   \n<blockquote>Пусто</blockquote>`,
-//     parse_mode: "HTML",
-//   }
-// );
+
+
 
 //bot.on('text', ctx => console.log(ctx.update.message.from));
 
@@ -967,64 +863,10 @@ const delay = (ms) =>
     setTimeout(() => res(), ms);
   });
 
-const messageAi = {};
 
-bot.on("message", async (ctx) => {
-  if (ctx.session.ai_disabled) {
-    console.log("Написал мне");
-    await ctx.replyWithChatAction("typing");
-    const txt = ctx.message.text;
-    //await delay(2000);
-    const res = (await askAI(txt)) ?? "Большая нагрузка попробуйте позже";
-    //reply_to_message_id: ctx.message.message_id
-    await ctx.reply(
-      `🔔 <b>Ответ DeepSeek</b> >\n<blockquote>${res}</blockquote>`,
-      {
-        parse_mode: "HTML",
-        reply_to_message_id: ctx.message.message_id,
-      }
-    );
-  }
-});
 
 bot.launch();
 
-const TOKEN1 =
-  "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";
-const TOKEN2 =
-  "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";
-async function askAI(ask) {
-  return await axios
-    .post(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
-        model: "deepseek/deepseek-chat-v3-0324:free",
-        messages: [
-          {
-            role: "user",
-            content: ask,
-          },
-        ],
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${TOKEN1}`,
-          "HTTP-Referer": "https://guttural-hurricane-pixie.glitch.me/sleep", // Optional. Site URL for rankings on openrouter.ai.
-          "X-Title": "Mutual Boost 2", // Optional. Site title for rankings on openrouter.ai.
-          "Content-Type": "application/json",
-        },
-      }
-    )
-    .then(async (res) => {
-      const response = await res.data.choices[0].message.content;
-      console.log(response);
-      return response;
-    })
-    .catch(async (e) => {
-      console.log(e);
-    });
-}
-//askAI('Hello')
 
 function dateNow() {
   return new Date().getTime();
@@ -1032,15 +874,6 @@ function dateNow() {
 
 app.get("/sleep", async (req, res) => {
   res.send({ type: 200 });
-});
-
-app.post("/ai", async (req, res) => {
-  const { ask } = req.body;
-  //console.log(req.body)
-  //await delay(2000);
-
-  const answer = await askAI(ask);
-  await res.send({ answer });
 });
 
 app.listen(3000, (err) => {
