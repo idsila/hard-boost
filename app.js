@@ -2,6 +2,7 @@ require("dotenv").config();
 
 const commands = require("./commands.js");
 const dataBase = require("./dataBase.js");
+const orderBase = require("./orderBase.js");
 
 const { Telegraf, session, Scenes } = require("telegraf");
 const express = require("express");
@@ -13,7 +14,11 @@ const fs = require("fs");
 const obj = JSON.parse(fs.readFileSync("log.json"));
 
 const followers = obj.filter((item) => item.category === "Telegram");
-const views = obj.filter( (item) => item.name.includes("росмотр") && item.category === "Telegram реакции/просмотры");
+const views = obj.filter(
+  (item) =>
+    item.name.includes("росмотр") &&
+    item.category === "Telegram реакции/просмотры"
+);
 const reactions = obj.filter(
   (item) =>
     item.name.includes("еакци") &&
@@ -33,9 +38,7 @@ bot.use(
     defaultSession: () => ({ write_user: false }),
     defaultSession: () => ({ write_admin: false }),
 
-    defaultSession: () => ({ order_followers: false }),
-    defaultSession: () => ({ ai_disabled: false }),
-    defaultSession: () => ({ ai_answer: false }),
+    defaultSession: () => ({ order_scena: false }),
   })
 );
 
@@ -51,94 +54,23 @@ function refCode(n = 6) {
 
 //bot.telegram.setMyCommands(commands);
 
-// Система принятий и проверок в канал
-bot.on("chat_join_requests", async (ctx) => {
-  const {
-    chat,
-    from: { id, first_name, username, language_code },
-    date,
-  } = ctx.chatJoinRequest;
-  dataBase.findOne({ username }).then(async (res) => {
-    if (!res) {
-      //Запись в базе данных создана
-      dataBase.insertOne({
-        id,
-        first_name,
-        username,
-        language_code,
-        ref_code: refCode(),
-        referrals: 0,
-        date: dateNow(),
-        balance: 0,
-        data_channel: { chat: chat, date: date, join: false },
-      });
-    } else if (res.data_channel === null || res.data_channel?.join) {
-      //Пользователь уже есть в базе данных нужно обновить данные
-      dataBase.updateOne(
-        { username },
-        { $set: { data_channel: { chat: chat, date: date, join: false } } }
-      );
-    }
-  });
-
-  await bot.telegram.sendPhoto(
-    id,
-    "https://i.ibb.co/yBXRdX1R/IMG-20250513-121336.jpg",
-    {
-      caption:
-        " 🔐 <b>Чтобы попасть в наш тг канал подтвердите, что вы не робот нажав на кнопку ниже. </b>",
-      parse_mode: "HTML",
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: "Я не робот 🚀", callback_data: "approve_join" }],
-        ],
-      },
-    }
-  );
-});
-bot.action("approve_join", async (ctx) => {
-  const { id, first_name, username, language_code } =
-    ctx.update.callback_query.from;
-  dataBase.findOne({ username }).then(async (res) => {
-    if (res) {
-      if (!res.data_channel?.join || res.data_channel === null) {
-        await dataBase.updateOne(
-          { username },
-          {
-            $set: {
-              data_channel: {
-                chat: res.data_channel.chat,
-                date: res.data_channel.date,
-                join: true,
-              },
-            },
-          }
-        );
-        await ctx.telegram.approveChatJoinRequest(res.data_channel.chat.id, id);
-        await ctx.reply("🛠️ <b>Вы прошли проверку</b>", { parse_mode: "HTML" });
-      } else {
-        await ctx.reply("🏁 <b>Вы уже прошли проверку</b>", {
-          parse_mode: "HTML",
-        });
-      }
-    }
-  });
-});
-
 //Сцены
 
 const writeHelp = new Scenes.WizardScene(
   "write_help",
   (ctx) => {
     ctx.session.write_user = true;
-    ctx.reply("<b>Можете задать любой вопрос, если возникли трудности. Также можно прикрепить фото.</b>", {
-      parse_mode: "HTML",
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: "❌ Отменить", callback_data: "cancel_write_help" }],
-        ],
-      },
-    });
+    ctx.reply(
+      "<b>Можете задать любой вопрос, если возникли трудности. Также можно прикрепить фото.</b>",
+      {
+        parse_mode: "HTML",
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "❌ Отменить", callback_data: "cancel_write_help" }],
+          ],
+        },
+      }
+    );
     return ctx.wizard.next();
   },
   (ctx) => {
@@ -257,17 +189,22 @@ const writeHelpAdmin = new Scenes.WizardScene(
 const orderFollowers = new Scenes.WizardScene(
   "order_followers",
   (ctx) => {
-    ctx.session.order_followers = true;
-    
-    if (ctx.callbackQuery?.data === "cancel_scena" ) {
-      ctx.session.order_followers = false;
+    ctx.session.order_scena = true;
+
+    if (ctx.callbackQuery?.data === "cancel_scena") {
+      ctx.session.order_scena = false;
       ctx.deleteMessage();
       return ctx.scene.leave();
     }
-    
-    const currentService = followers.find((item) => item.service == ctx.wizard.state.service);
 
-    if (ctx.message?.text >= currentService.min && ctx.message?.text <= currentService.max) {
+    const currentService = followers.find(
+      (item) => item.service == ctx.wizard.state.service
+    );
+
+    if (
+      ctx.message?.text >= currentService.min &&
+      ctx.message?.text <= currentService.max
+    ) {
       ctx.reply(
         `<b>📝 Отправьте сылку на канал:</b>
 <code>⚠️ Ссылка должна быть в формате:\nhttps://t.me/username</code>
@@ -302,7 +239,9 @@ const orderFollowers = new Scenes.WizardScene(
           "ru-RU"
         )}</blockquote>
 <blockquote>Минимум: ${currentService.min.toLocaleString("ru-RU")}</blockquote>
-<blockquote>Максимум: ${currentService.max.toLocaleString("ru-RU")}</blockquote>`,
+<blockquote>Максимум: ${currentService.max.toLocaleString(
+          "ru-RU"
+        )}</blockquote>`,
         {
           parse_mode: "HTML",
           reply_markup: {
@@ -320,51 +259,82 @@ const orderFollowers = new Scenes.WizardScene(
     }
   },
   (ctx) => {
-    console.log(ctx.callbackQuery?.data)
-    if (ctx.callbackQuery?.data === "cancel_scena" ) {
-      ctx.session.order_followers = false;
+    console.log(ctx.callbackQuery?.data);
+    if (ctx.callbackQuery?.data === "cancel_scena") {
+      ctx.session.order_scena = false;
       ctx.deleteMessage();
       return ctx.scene.leave();
     }
-    
-    //console.log(ctx.wizard.state);
+
     const currentService = followers.find(
       (item) => item.service == ctx.wizard.state.service
     );
 
     if (ctx.message?.text.includes("https://t.me/")) {
-      const idOrder = refCode();
-      ctx.reply(
-        `<b>📝 Оплатите заказ: #${idOrder}</b>
-
+      dataBase.findOne({ id: ctx.from.id }).then((res_0) => {
+        if (res_0.balance >= ctx.wizard.state.pay) {
+          const idOrder = refCode();
+          const URL = ctx.message?.text.trim();
+          orderBase
+            .insertOne({
+              id: idOrder,
+              customer: ctx.from.id,
+              service: currentService.service,
+              amount: ctx.wizard.state.amount,
+              price: ctx.wizard.state.pay,
+              url: URL,
+              ready: false,
+            })
+            .then((res) => {
+              ctx.reply(
+                `<b>📝 Оплатите заказ: #${idOrder}</b>
+  
 <blockquote>Услуга: ${currentService.name}</blockquote>
 <blockquote>Ваше колличество: ${ctx.wizard.state.amount.toLocaleString(
-          "ru-RU"
-        )}</blockquote>
+                  "ru-RU"
+                )}</blockquote>
 <blockquote>Сумма к списанию: ${ctx.wizard.state.pay.toLocaleString(
-          "ru-RU"
-        )}₽</blockquote>
-<blockquote>Сылка: ${ctx.message?.text}</blockquote>
-       
-        
-            `,
-        {
-          parse_mode: "HTML",
-          reply_markup: {
-            inline_keyboard: [
-              [
+                  "ru-RU"
+                )}₽</blockquote>
+<blockquote>Сылка: ${URL}</blockquote> `,
                 {
-                  text: "💳 Оплатить",
-                  callback_data: "pay",
-                },
-              ],
-            ],
-          },
+                  parse_mode: "HTML",
+                  reply_markup: {
+                    inline_keyboard: [
+                      [
+                        {
+                          text: "💳 Оплатить",
+                          callback_data:`pay_order_${idOrder}`,
+                        },
+                      ],
+                    ],
+                  },
+                }
+              );
+              console.log("CREATE ORDER");
+              ctx.session.order_scena = false;
+              return ctx.scene.leave();
+            });
         }
-      );
-      console.log("NEXT2");
-      ctx.session.order_followers = false;
-      return ctx.scene.leave();
+        else{
+          ctx.reply(`<b>⚠️ Упс у вас не достаточно средств: </b>
+<blockquote>💰 Баланс: ${res_0.balance.toLocaleString("ru-RU")}</blockquote>
+<blockquote>Сумма к списанию: ${ctx.wizard.state.pay.toLocaleString("ru-RU")}₽</blockquote>
+    `,
+            {
+              parse_mode: "HTML",
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: "💳 Пополнить баланс", callback_data: `pay_balance` }],
+                  [{ text: "👨‍💻 Задать вопрос", callback_data: `help` }],
+                ],
+              },
+            }
+          );
+          ctx.session.order_scena = false;
+          return ctx.scene.leave();
+        }
+      });
     } else {
       ctx.reply(
         `<b>📝 Отправьте сылку на канал:</b>
@@ -390,7 +360,388 @@ const orderFollowers = new Scenes.WizardScene(
   }
 );
 
-const stage = new Scenes.Stage([writeHelp, writeHelpAdmin, orderFollowers]);
+
+
+
+
+
+
+const orderBoosts = new Scenes.WizardScene(
+  "order_boosts",
+  (ctx) => {
+    ctx.session.order_scena = true;
+
+    if (ctx.callbackQuery?.data === "cancel_scena") {
+      ctx.session.order_scena = false;
+      ctx.deleteMessage();
+      return ctx.scene.leave();
+    }
+
+    const currentService = boosts.find(
+      (item) => item.service == ctx.wizard.state.service
+    );
+
+    if (
+      ctx.message?.text >= currentService.min &&
+      ctx.message?.text <= currentService.max
+    ) {
+      ctx.reply(
+        `<b>📝 Отправьте сылку на канал:</b>
+<code>⚠️ Ссылка должна быть в формате:\nhttps://t.me/username</code>
+
+<blockquote>Услуга: ${currentService.name}</blockquote>
+`,
+        {
+          parse_mode: "HTML",
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: "❌ Отменить",
+                  callback_data: "cancel_scena",
+                },
+              ],
+            ],
+          },
+        }
+      );
+      ctx.wizard.state.amount = ctx.message?.text * 1;
+      ctx.wizard.state.pay =
+        (currentService.rate) * (ctx.message?.text * 1);
+      ctx.wizard.state.currentService = currentService;
+      return ctx.wizard.next();
+    } else {
+      ctx.reply(
+        `<b>📝 Напишите нужное вам колличество:</b>
+
+<blockquote>Услуга: ${currentService.name}</blockquote>
+<blockquote>Ценна за 1шт: ${(currentService.rate).toLocaleString(
+          "ru-RU"
+        )}₽</blockquote>
+<blockquote>Минимум: ${currentService.min.toLocaleString("ru-RU")}</blockquote>
+<blockquote>Максимум: ${currentService.max.toLocaleString(
+          "ru-RU"
+        )}</blockquote>`,
+        {
+          parse_mode: "HTML",
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: "❌ Отменить",
+                  callback_data: "cancel_scena",
+                },
+              ],
+            ],
+          },
+        }
+      );
+    }
+  },
+  (ctx) => {
+    console.log(ctx.callbackQuery?.data);
+    if (ctx.callbackQuery?.data === "cancel_scena") {
+      ctx.session.order_scena = false;
+      ctx.deleteMessage();
+      return ctx.scene.leave();
+    }
+
+    const currentService = boosts.find(
+      (item) => item.service == ctx.wizard.state.service
+    );
+
+    if (ctx.message?.text.includes("https://t.me/")) {
+      dataBase.findOne({ id: ctx.from.id }).then((res_0) => {
+        if (res_0.balance >= ctx.wizard.state.pay) {
+          const idOrder = refCode();
+          const URL = ctx.message?.text.trim();
+          orderBase
+            .insertOne({
+              id: idOrder,
+              customer: ctx.from.id,
+              service: currentService.service,
+              amount: ctx.wizard.state.amount,
+              price: ctx.wizard.state.pay,
+              url: URL,
+              ready: false,
+            })
+            .then((res) => {
+              ctx.reply(
+                `<b>📝 Оплатите заказ: #${idOrder}</b>
+  
+<blockquote>Услуга: ${currentService.name}</blockquote>
+<blockquote>Ваше колличество: ${ctx.wizard.state.amount.toLocaleString(
+                  "ru-RU"
+                )}</blockquote>
+<blockquote>Сумма к списанию: ${ctx.wizard.state.pay.toLocaleString(
+                  "ru-RU"
+                )}₽</blockquote>
+<blockquote>Сылка: ${URL}</blockquote> `,
+                {
+                  parse_mode: "HTML",
+                  reply_markup: {
+                    inline_keyboard: [
+                      [
+                        {
+                          text: "💳 Оплатить",
+                          callback_data:`pay_order_${idOrder}`,
+                        },
+                      ],
+                    ],
+                  },
+                }
+              );
+              console.log("CREATE ORDER");
+              ctx.session.order_scena = false;
+              return ctx.scene.leave();
+            });
+        }
+        else{
+          ctx.reply(`<b>⚠️ Упс у вас не достаточно средств: </b>
+<blockquote>💰 Баланс: ${res_0.balance.toLocaleString("ru-RU")}</blockquote>
+<blockquote>Сумма к списанию: ${ctx.wizard.state.pay.toLocaleString("ru-RU")}₽</blockquote>
+    `,
+            {
+              parse_mode: "HTML",
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: "💳 Пополнить баланс", callback_data: `pay_balance` }],
+                  [{ text: "👨‍💻 Задать вопрос", callback_data: `help` }],
+                ],
+              },
+            }
+          );
+          ctx.session.order_scena = false;
+          return ctx.scene.leave();
+        }
+      });
+    } else {
+      ctx.reply(
+        `<b>📝 Отправьте сылку на канал:</b>
+<code>⚠️ Ссылка должна быть в формате:\nhttps://t.me/username</code>
+        
+<blockquote>Услуга: ${currentService.name}</blockquote>
+`,
+        {
+          parse_mode: "HTML",
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: "❌ Отменить",
+                  callback_data: "cancel_scena",
+                },
+              ],
+            ],
+          },
+        }
+      );
+    }
+  }
+);
+
+
+
+
+const createOrder = new Scenes.WizardScene(
+  "create_order",
+  (ctx) => {
+    ctx.session.order_scena = true;
+
+    if (ctx.callbackQuery?.data === "cancel_scena") {
+      ctx.session.order_scena = false;
+      ctx.deleteMessage();
+      return ctx.scene.leave();
+    }
+
+    const currentService = obj.find(
+      (item) => item.service == ctx.wizard.state.service
+    );
+
+    if (
+      ctx.message?.text >= currentService.min &&
+      ctx.message?.text <= currentService.max
+    ) {
+      ctx.reply(
+        `<b>📝 Отправьте сылку на канал:</b>
+<code>⚠️ Ссылка должна быть в формате:\nhttps://t.me/username</code>
+
+<blockquote>Услуга: ${currentService.name}</blockquote>
+`,
+        {
+          parse_mode: "HTML",
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: "❌ Отменить",
+                  callback_data: "cancel_scena",
+                },
+              ],
+            ],
+          },
+        }
+      );
+      ctx.wizard.state.amount = ctx.message?.text * 1;
+      ctx.wizard.state.pay =
+        (currentService.rate / 1000) * (ctx.message?.text * 1);
+      ctx.wizard.state.currentService = currentService;
+      return ctx.wizard.next();
+    } else {
+      ctx.reply(
+        `<b>📝 Напишите нужное вам колличество:</b>
+
+<blockquote>Услуга: ${currentService.name}</blockquote>
+<blockquote>Ценна за 1шт: ${(currentService.rate / 1000).toLocaleString(
+          "ru-RU"
+        )}₽</blockquote>
+<blockquote>Минимум: ${currentService.min.toLocaleString("ru-RU")}</blockquote>
+<blockquote>Максимум: ${currentService.max.toLocaleString(
+          "ru-RU"
+        )}</blockquote>`,
+        {
+          parse_mode: "HTML",
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: "❌ Отменить",
+                  callback_data: "cancel_scena",
+                },
+              ],
+            ],
+          },
+        }
+      );
+    }
+  },
+  (ctx) => {
+    console.log(ctx.callbackQuery?.data);
+    if (ctx.callbackQuery?.data === "cancel_scena") {
+      ctx.session.order_scena = false;
+      ctx.deleteMessage();
+      return ctx.scene.leave();
+    }
+
+    const currentService = obj.find(
+      (item) => item.service == ctx.wizard.state.service
+    );
+
+    if (ctx.message?.text.includes("https://t.me/")) {
+      dataBase.findOne({ id: ctx.from.id }).then((res_0) => {
+        if (res_0.balance >= ctx.wizard.state.pay) {
+          const idOrder = refCode();
+          const URL = ctx.message?.text.trim();
+          orderBase
+            .insertOne({
+              id: idOrder,
+              customer: ctx.from.id,
+              service: currentService.service,
+              amount: ctx.wizard.state.amount,
+              price: ctx.wizard.state.pay,
+              url: URL,
+              ready: false,
+            })
+            .then((res) => {
+              ctx.reply(
+                `<b>📝 Оплатите заказ: #${idOrder}</b>
+  
+<blockquote>Услуга: ${currentService.name}</blockquote>
+<blockquote>Ваше колличество: ${ctx.wizard.state.amount.toLocaleString(
+                  "ru-RU"
+                )}</blockquote>
+<blockquote>Сумма к списанию: ${ctx.wizard.state.pay.toLocaleString(
+                  "ru-RU"
+                )}₽</blockquote>
+<blockquote>Сылка: ${URL}</blockquote> `,
+                {
+                  parse_mode: "HTML",
+                  reply_markup: {
+                    inline_keyboard: [
+                      [
+                        {
+                          text: "💳 Оплатить",
+                          callback_data:`pay_order_${idOrder}`,
+                        },
+                      ],
+                    ],
+                  },
+                }
+              );
+              console.log("CREATE ORDER");
+              ctx.session.order_scena = false;
+              return ctx.scene.leave();
+            });
+        }
+        else{
+          ctx.reply(`<b>⚠️ Упс у вас не достаточно средств: </b>
+<blockquote>💰 Баланс: ${res_0.balance.toLocaleString("ru-RU")}</blockquote>
+<blockquote>Сумма к списанию: ${ctx.wizard.state.pay.toLocaleString("ru-RU")}₽</blockquote>
+    `,
+            {
+              parse_mode: "HTML",
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: "💳 Пополнить баланс", callback_data: `pay_balance` }],
+                  [{ text: "👨‍💻 Задать вопрос", callback_data: `help` }],
+                ],
+              },
+            }
+          );
+          ctx.session.order_scena = false;
+          return ctx.scene.leave();
+        }
+      });
+    } else {
+      ctx.reply(
+        `<b>📝 Отправьте сылку на канал:</b>
+<code>⚠️ Ссылка должна быть в формате:\nhttps://t.me/username</code>
+        
+<blockquote>Услуга: ${currentService.name}</blockquote>
+`,
+        {
+          parse_mode: "HTML",
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: "❌ Отменить",
+                  callback_data: "cancel_scena",
+                },
+              ],
+            ],
+          },
+        }
+      );
+    }
+  }
+);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+const stage = new Scenes.Stage([writeHelp, writeHelpAdmin, createOrder, orderBoosts]);
 bot.use(stage.middleware());
 
 // Действия по нажатию inline кнопки
@@ -403,13 +754,82 @@ bot.action(/^user/i, async (ctx) => {
 });
 
 bot.action(/^followers_/i, async (ctx) => {
-  if (!ctx.session.order_followers) {
-    ctx.session.order_followers = false;
+  if (!ctx.session.order_scena) {
+    ctx.session.order_scena = false;
     const [, id, service] = ctx.match.input.split("_");
-
-    ctx.scene.enter("order_followers", { id, service });
+    ctx.scene.enter("create_order", { id, service });
   }
 });
+bot.action(/^views_/i, async (ctx) => {
+  if (!ctx.session.order_scena) {
+    ctx.session.order_scena = false;
+    const [, id, service] = ctx.match.input.split("_");
+    ctx.scene.enter("create_order", { id, service });
+  }
+});
+
+
+bot.action(/^reactions_/i, async (ctx) => {
+  if (!ctx.session.order_scena) {
+    ctx.session.order_scena = false;
+    const [, id, service] = ctx.match.input.split("_");
+    ctx.scene.enter("create_order", { id, service });
+  }
+});
+
+bot.action(/^boosts_/i, async (ctx) => {
+  if (!ctx.session.order_scena) {
+    ctx.session.order_scena = false;
+    const [, id, service] = ctx.match.input.split("_");
+    ctx.scene.enter("order_boosts", { id, service });
+  }
+});
+
+bot.action(/^stars_/i, async (ctx) => {
+  if (!ctx.session.order_scena) {
+    ctx.session.order_scena = false;
+    const [, id, service] = ctx.match.input.split("_");
+    ctx.scene.enter("create_order", { id, service });
+  }
+});
+
+
+
+
+bot.action(/^pay_order_/i, async (ctx) => {
+  await ctx.deleteMessage();
+  const id = ctx.from.id;
+    const idOrder = ctx.match.input.split("_")[2];
+    orderBase.findOne({ id: idOrder }).then(res_0 => {
+      if(!res_0.ready){ 
+        dataBase.findOne({ id: id }).then(res_1 => {
+          if(res_1.balance >= res_0.price){
+            dataBase.updateOne({ id: id }, { $inc : { balance: -res_0.price }});
+            orderBase.updateOne({ id: idOrder }, { $set : { ready: true }});
+            const currentService = obj.find((item) => item.service == res_0.service);
+            ctx.reply(`<b>✅ Заказ оплачен: #${idOrder}</b>
+Ожидайте в течение нескольких минут вы получите результат.
+
+<blockquote>Услуга: ${currentService.name}</blockquote>
+<blockquote>Ваше колличество: ${res_0.amount.toLocaleString("ru-RU")}</blockquote>
+<blockquote>Сумма к списанию: ${res_0.price.toLocaleString("ru-RU")}₽</blockquote>
+<blockquote>Сылка: ${res_0.url}</blockquote> `,
+              {
+                parse_mode: "HTML"
+              }
+            );
+            console.log('Опалата успешно');
+          }
+        })
+      }
+      else{
+        console.log('Уже было оплаченно');
+      }
+    });  
+});
+
+
+
 
 bot.action("help", async (ctx) => {
   if (!ctx.session.write_user) {
@@ -522,6 +942,12 @@ bot.action("pay_umoney", async (ctx) => {
 
 
 
+
+
+
+
+
+
 //Действия по кнопке для показа товаров накрутки
 
 bot.action("buy_followers", async (ctx) => {
@@ -537,27 +963,29 @@ bot.action("buy_followers", async (ctx) => {
   });
 
   keyboard.push([{ text: "<< Назад", callback_data: `menu_back` }]);
-  
-   await ctx.editMessageMedia(
+
+  await ctx.editMessageMedia(
     {
-    type: "photo",
-    media: "https://i.ibb.co/qYJqZjqG/card-1001.jpg",
-    caption: "Ниже представденны тарифы и их ценны за 1 тысяу.",
-    parse_mode: "HTML"
+      type: "photo",
+      media: "https://i.ibb.co/qYJqZjqG/card-1001.jpg",
+      caption: "Ниже представденны тарифы и их ценны за 1 тысяу.",
+      parse_mode: "HTML",
     },
     {
-    reply_markup: {
-      inline_keyboard: keyboard,
-    },
-  });
+      reply_markup: {
+        inline_keyboard: keyboard,
+      },
+    }
+  );
 });
 
 bot.action("buy_views", async (ctx) => {
+  const { id } = ctx.from;
   const keyboard = views.map((item) => {
     return [
       {
         text: `${item.name} → ${item.rate.toFixed(1)}₽`,
-        callback_data: item.service,
+        callback_data: `views_${id}_${item.service}`,
       },
     ];
   });
@@ -566,23 +994,26 @@ bot.action("buy_views", async (ctx) => {
 
   await ctx.editMessageMedia(
     {
-    type: "photo",
-    media: "https://i.ibb.co/qYJqZjqG/card-1001.jpg", 
-    caption: "Ниже представденны тарифы и их ценны за 1 тысяу.",
-    parse_mode: "HTML"
-    },{
-    reply_markup: {
-      inline_keyboard: keyboard,
+      type: "photo",
+      media: "https://i.ibb.co/qYJqZjqG/card-1001.jpg",
+      caption: "Ниже представденны тарифы и их ценны за 1 тысяу.",
+      parse_mode: "HTML",
     },
-  });
+    {
+      reply_markup: {
+        inline_keyboard: keyboard,
+      },
+    }
+  );
 });
 
 bot.action("buy_reactions", async (ctx) => {
+  const { id } = ctx.from;
   const keyboard = reactions.map((item) => {
     return [
       {
         text: `${item.name} → ${item.rate.toFixed(1)}₽`,
-        callback_data: item.service,
+        callback_data: `reactions_${id}_${item.service}`,
       },
     ];
   });
@@ -591,23 +1022,26 @@ bot.action("buy_reactions", async (ctx) => {
 
   await ctx.editMessageMedia(
     {
-    type: "photo",
-    media: "https://i.ibb.co/qYJqZjqG/card-1001.jpg", 
-    caption: "Ниже представденны тарифы и их ценны за 1 тысяу.",
-    parse_mode: "HTML"
-    },{
-    reply_markup: {
-      inline_keyboard: keyboard,
+      type: "photo",
+      media: "https://i.ibb.co/qYJqZjqG/card-1001.jpg",
+      caption: "Ниже представденны тарифы и их ценны за 1 тысяу.",
+      parse_mode: "HTML",
     },
-  });
+    {
+      reply_markup: {
+        inline_keyboard: keyboard,
+      },
+    }
+  );
 });
 
 bot.action("buy_boosts", async (ctx) => {
+  const { id } = ctx.from;
   const keyboard = boosts.map((item) => {
     return [
       {
         text: `${item.name} → ${item.rate.toFixed(1)}₽`,
-        callback_data: item.service,
+        callback_data: `boosts_${id}_${item.service}`,
       },
     ];
   });
@@ -616,23 +1050,26 @@ bot.action("buy_boosts", async (ctx) => {
 
   await ctx.editMessageMedia(
     {
-    type: "photo",
-    media: "https://i.ibb.co/qYJqZjqG/card-1001.jpg", 
-    caption: "Ниже представденны тарифы и их ценны за 1шт.",
-    parse_mode: "HTML"
-    },{
-    reply_markup: {
-      inline_keyboard: keyboard,
+      type: "photo",
+      media: "https://i.ibb.co/qYJqZjqG/card-1001.jpg",
+      caption: "Ниже представденны тарифы и их ценны за 1шт.",
+      parse_mode: "HTML",
     },
-  });
+    {
+      reply_markup: {
+        inline_keyboard: keyboard,
+      },
+    }
+  );
 });
 
 bot.action("buy_stars", async (ctx) => {
+  const { id } = ctx.from;
   const keyboard = stars.map((item) => {
     return [
       {
         text: `${item.name} → ${item.rate.toFixed(1)}₽`,
-        callback_data: item.service,
+        callback_data: `stars_${id}_${item.service}`,
       },
     ];
   });
@@ -641,16 +1078,28 @@ bot.action("buy_stars", async (ctx) => {
 
   await ctx.editMessageMedia(
     {
-    type: "photo",
-    media: "https://i.ibb.co/qYJqZjqG/card-1001.jpg", 
-    caption: "Ниже представденны тарифы оптом за 1 тысяу",
-    parse_mode: "HTML"
-    },{
-    reply_markup: {
-      inline_keyboard: keyboard,
+      type: "photo",
+      media: "https://i.ibb.co/qYJqZjqG/card-1001.jpg",
+      caption: "Ниже представденны тарифы оптом за 1 тысяу",
+      parse_mode: "HTML",
     },
-  });
+    {
+      reply_markup: {
+        inline_keyboard: keyboard,
+      },
+    }
+  );
 });
+
+
+
+
+
+
+
+
+
+
 
 
 // Получение id канал для проверки подписки
@@ -676,8 +1125,6 @@ bot.command("check", async (ctx) => {
     ctx.reply("-");
   }
 });
-
-
 
 // Действия по нажатию кнопки из keyboard
 bot.hears("🗂️ Меню", async (ctx) => {
@@ -715,10 +1162,10 @@ bot.hears("👨 Личный кабинет", async (ctx) => {
     await ctx.deleteMessage();
     await ctx.reply(
       `<b>Информация по 👨 аккаунту:</b>\n🆔 ID: <code>${res.id}</code>
-💰 Баланс: ${res.balance} ₽
+💰 Баланс: ${res.balance.toLocaleString("ru-RU")} ₽
 
 🤝 Партнерская программа: - /ref
-‍├ Рефералов: ${res.referrals}
+‍├ Рефералов: ${res.referrals.toLocaleString("ru-RU")}
 `,
       {
         parse_mode: "HTML",
@@ -748,10 +1195,10 @@ bot.command("start", async (ctx) => {
         username,
         language_code,
         referrals: 0,
+        bonus: true,
         ref_code: refCode(),
         date: dateNow(),
-        balance: 0,
-        data_channel: null,
+        balance: 14809,
       });
       if (refHashRaw) {
         const refHash = refHashRaw.split("_")[1];
@@ -803,6 +1250,10 @@ bot.command("drop", async (ctx) => {
   dataBase.deleteMany({});
   ctx.reply("DROP COLLECTION");
 });
+bot.command("drops", async (ctx) => {
+  orderBase.deleteMany({});
+  ctx.reply("DROP COLLECTION");
+});
 
 bot.command("about", async (ctx) => {
   ctx.replyWithPhoto("https://i.ibb.co/rf08CWL0/card-1008.jpg", {
@@ -844,17 +1295,20 @@ bot.command("help", async (ctx) => {
   }
 });
 
-bot.command("db", async (ctx) => {
+bot.command("users", async (ctx) => {
   dataBase.find({}).then((res) => {
     ctx.reply("```js" + JSON.stringify(res, null, 2) + "```", {
       parse_mode: "Markdown",
     });
   });
 });
-
-
-
-
+bot.command("orders", async (ctx) => {
+  orderBase.find({}).then((res) => {
+    ctx.reply("```js" + JSON.stringify(res, null, 2) + "```", {
+      parse_mode: "Markdown",
+    });
+  });
+});
 
 //bot.on('text', ctx => console.log(ctx.update.message.from));
 
@@ -863,10 +1317,7 @@ const delay = (ms) =>
     setTimeout(() => res(), ms);
   });
 
-
-
 bot.launch();
-
 
 function dateNow() {
   return new Date().getTime();
