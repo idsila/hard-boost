@@ -33,6 +33,7 @@ app.use(express.json());
 const ADMIN_ID = 7502494374;
 
 const bot = new Telegraf(process.env.TOKEN);
+const OPTSMM_KEY = process.env.OPTSMM_KEY;
 bot.use(
   session({
     defaultSession: () => ({ write_user: false }),
@@ -793,32 +794,72 @@ bot.action(/^stars_/i, async (ctx) => {
   }
 });
 
+bot.action(/^status_order_/i, async (ctx) => {
+  const [,, order] = ctx.match.input.split("_");
+  axios(`https://optsmm.ru/api/v2?action=status&order=${order}&key=${OPTSMM_KEY}`)
+  .then(optsmm => {
+    console.log(optsmm.data);
+    ctx.reply(`<b>👁️ Статус Заказа: </b>    
+<blockquote>🔄 Статус: ${optsmm.data.status}</blockquote>
+<blockquote>⏳ Осталось: ${(optsmm.data.remains*1).toLocaleString("ru-RU")}</blockquote>
+<blockquote>💰 Заряд: ${(optsmm.data.charge*1).toLocaleString("ru-RU")}₽</blockquote>
+`,
+      {
+        parse_mode: "HTML",
+      }
+    );
+  });
+  
+});
 
 
 
 bot.action(/^pay_order_/i, async (ctx) => {
-  await ctx.deleteMessage();
   const id = ctx.from.id;
     const idOrder = ctx.match.input.split("_")[2];
     orderBase.findOne({ id: idOrder }).then(res_0 => {
       if(!res_0.ready){ 
         dataBase.findOne({ id: id }).then(res_1 => {
           if(res_1.balance >= res_0.price){
-            dataBase.updateOne({ id: id }, { $inc : { balance: -res_0.price }});
-            orderBase.updateOne({ id: idOrder }, { $set : { ready: true }});
-            const currentService = obj.find((item) => item.service == res_0.service);
-            ctx.reply(`<b>✅ Заказ оплачен: #${idOrder}</b>
+            axios(`https://optsmm.ru/api/v2?action=add&service=${res_0.service}&link=${res_0.url}&quantity=${res_0.amount}&key=${OPTSMM_KEY}`)
+            .then(optsmm => {
+              ctx.deleteMessage();
+              dataBase.updateOne({ id: id }, { $inc : { balance: -res_0.price }});
+              orderBase.updateOne({ id: idOrder }, { $set : { ready: true, order: optsmm.data.order}});
+              const currentService = obj.find((item) => item.service == res_0.service);
+              ctx.reply(`<b>✅ Заказ оплачен: #${idOrder}</b>
 Ожидайте в течение нескольких минут вы получите результат.
 
 <blockquote>Услуга: ${currentService.name}</blockquote>
 <blockquote>Ваше колличество: ${res_0.amount.toLocaleString("ru-RU")}</blockquote>
 <blockquote>Сумма к списанию: ${res_0.price.toLocaleString("ru-RU")}₽</blockquote>
 <blockquote>Сылка: ${res_0.url}</blockquote> `,
-              {
-                parse_mode: "HTML"
-              }
-            );
-            console.log('Опалата успешно');
+                {
+                parse_mode: "HTML",
+                reply_markup: {
+                  inline_keyboard: [
+                    [
+                      {
+                        text: "👁️ Статус заказа",
+                        callback_data: `status_order_${optsmm.data.order}`,
+                      },
+                    ],
+                  ],
+                },
+                }
+              );
+              console.log('Опалата успешно');
+
+            })
+            .catch(() => {
+              ctx.reply(`<b>❌ Ошибка заказа: #${idOrder}</b>
+Если это произошло не первый раз обратитесь в поддержку!
+                `,
+                {
+                  parse_mode: "HTML"
+                });
+                console.log('Опалата не успешно');
+            })
           }
         })
       }
