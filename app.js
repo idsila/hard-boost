@@ -869,7 +869,43 @@ bot.action(/^pay_order_/i, async (ctx) => {
     });  
 });
 
+bot.action(/^pay_crypto_/i, async (ctx) => {
+  const id = ctx.from.id;
+  const amountOrder = ctx.match.input.split("_")[2];
+  console.log(amountOrder)
 
+  axios.post(`https://pay.crypt.bot/api/createInvoice`,
+    {
+      currency_type: "fiat", 
+      fiat: "RUB",           
+      amount: amountOrder,       
+      accepted_assets: "USDT",
+      description: `Пополнение баланса на ${amountOrder}₽`
+    },
+    {
+      headers: {
+        "Crypto-Pay-API-Token": process.env.TOKEN_CRYPTO,
+      },
+    }
+  ).then(res => {
+    const { invoice_id, amount, created_at, bot_invoice_url } = res.data.result;
+
+    orderBase.insertOne( { invoice_id, amount, created_at, bot_invoice_url, id }).then(res_2 => {
+      ctx.reply(`<b>💳 Ссылка на оплату сгенерирована!</b>
+<blockquote>⚡️ Обратите внимание: сервис может удерживать комиссию до 3%.</blockquote>`
+            ,{  
+              parse_mode: "HTML",
+              reply_markup: {
+                inline_keyboard: [
+                  [ { text: `Пополнить на ${amountOrder}₽`, url: bot_invoice_url } ]
+                ] 
+              }
+            });
+    })
+    
+  })
+
+});
 
 
 bot.action("help", async (ctx) => {
@@ -979,6 +1015,35 @@ bot.action("pay_umoney", async (ctx) => {
   );
 });
 
+
+
+bot.action("pay_crypto", async (ctx) => {
+  await ctx.editMessageMedia(
+    {
+      type: "photo",
+      media: "https://i.ibb.co/JRwY2T6L/card-1004.jpg",
+      caption: "<b>💸 Это пополнения баланса через Крипту.</b>",
+      parse_mode: "HTML",
+    },
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "100₽", callback_data: `pay_crypto_100` },
+            { text: "200₽", callback_data: `pay_crypto_200` },
+            { text: "300₽", callback_data: `pay_crypto_300` },
+          ],
+          [
+            { text: "500₽", callback_data: `pay_crypto_500` },
+            { text: "1000₽", callback_data: `pay_crypto_1000` },
+            { text: "5000₽", callback_data: `pay_crypto_5000` },
+          ],
+          [{ text: "<< Назад", callback_data: `pay_balance` }],
+        ],
+      },
+    }
+  );
+});
 
 
 
@@ -1363,6 +1428,28 @@ bot.launch();
 function dateNow() {
   return new Date().getTime();
 }
+
+
+
+app.post("/pay", async (req, res) => {
+  const update = req.body;
+  console.log(req.body);
+  if (update.update_type === "invoice_paid") {
+    console.log("💸 Оплата прошла!");
+    const invoice = update.payload;
+    const currentAmount = (update.payload.amount*1)*0.97;
+    orderBase.findOne({ invoice_id: invoice.invoice_id }).then((res_2) => {
+      console.log(res_2)
+      if (res_2){
+        dataBase.updateOne({ id: res_2.id }, { $inc: { balance: currentAmount } });
+      }
+    })
+  }
+  res.send({ message: "Hello World" });
+});
+
+
+
 
 app.get("/sleep", async (req, res) => {
   res.send({ type: 200 });
