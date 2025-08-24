@@ -9,6 +9,7 @@ const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
 const app = express();
+const querystring = require("querystring");
 const fs = require("fs");
 
 const obj = JSON.parse(fs.readFileSync("log.json"));
@@ -43,15 +44,7 @@ bot.use(
   })
 );
 
-function refCode(n = 6) {
-  const symbols =
-    "QWERTYUIOPASDFGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnm1234567890";
-  let user_hash = "";
-  for (let i = 0; i != n; i++) {
-    user_hash += symbols[Math.floor(Math.random() * symbols.length)];
-  }
-  return user_hash;
-}
+
 
 //bot.telegram.setMyCommands(commands);
 
@@ -869,6 +862,78 @@ bot.action(/^pay_order_/i, async (ctx) => {
     });  
 });
 
+
+bot.action(/^pay_umoney_/i, async (ctx) => {
+  const id = ctx.from.id;
+  const amountOrder = ctx.match.input.split("_")[2];
+
+  const currenLable = refCode(10);
+
+  const link = createQuickpayLink({ receiver: "4100119146265962", sum: amountOrder*1, label: currenLable, targets: `Оплата #${currenLable}` });
+
+
+    orderBase.insertOne( { id, lable: currenLable, amount: amountOrder*1, status: false }).then(res_2 => {
+      ctx.reply(`<b>💳 Ссылка на оплату сгенерирована #${currenLable}</b>
+<blockquote><b>⚡️ Обратите внимание: сервис удерживает 3% комиссии, но мы покрываем её за вас! </b> </blockquote>`
+            ,{  
+              parse_mode: "HTML",
+              reply_markup: {
+                inline_keyboard: [
+                  [ { text: `Пополнить на ${amountOrder}₽`, url: link } ],
+                  [ { text: `Проверить оплату`, callback_data: `umoney_lable_${currenLable}` } ]
+                ] 
+              }
+            });
+    })
+    
+
+
+});
+
+bot.action(/^umoney_lable_/i, async (ctx) => {
+  const id = ctx.from.id;
+  const currenLable = ctx.match.input.split("_")[2];
+
+  console.log(currenLable);
+
+  const response = await axios.post(
+    "https://yoomoney.ru/api/operation-history",
+    { label: currenLable }, // фильтруем по вашему label
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.ACCESS_TOKEN}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      }
+    );
+  
+    const operations = response.data.operations || [];
+    if (operations.length === 0) {
+      ctx.reply(`<b>❌ Платеж с таким #${currenLable} не найден</b>`, { parse_mode: 'HTML'});
+      return false;
+    }
+  
+    const payment = operations[0]; // последний платёж с этим label
+    if (payment.status === "success") {
+      console.log(payment)
+      await ctx.deleteMessage();
+     
+      orderBase.findOne({ lable: currenLable }).then(async (order) => {
+        ctx.reply(`<b>✅ Оплата подтверждена #${currenLable}</b>
+<blockquote>Cумма пополнения: <b>${order.amount}₽</b></blockquote>`, { parse_mode: 'HTML'});
+        orderBase.updateOne({ lable: currenLable }, { $set: { status: true } });
+        dataBase.updateOne({ id: order.id }, { $inc: { balance: order.amount*1 } });
+      });
+      return true;
+    } else {
+      ctx.reply("⏳ Платёж ещё не завершён");
+      return false;
+    }
+  
+
+});
+
+
 bot.action(/^pay_crypto_/i, async (ctx) => {
   const id = ctx.from.id;
   const amountOrder = ctx.match.input.split("_")[2];
@@ -1303,6 +1368,7 @@ bot.command("start", async (ctx) => {
         referrals: 0,
         bonus: true,
         ref_code: refCode(),
+        prefer: refHashRaw ? refHashRaw.split("_")[1] : 0 ,
         date: dateNow(),
         balance: 14809,
       });
@@ -1345,8 +1411,11 @@ bot.command("ref", async (ctx) => {
   const { id } = ctx.from;
   dataBase.findOne({ id }).then(async (res) => {
     const refLink = `https://t.me/${ctx.botInfo.username}?start=ref_${res.ref_code}`;
-    await ctx.reply(
-      `🔗 Ваша реферальная ссылка:\n<code>${refLink}</code>\n\nПриглашайте друзей и получайте бонусы! 🎁`,
+    await ctx.reply(`<b>🔗 Ваша реферальная ссылка</b>
+<code>${refLink}</code>
+
+Приглашайте друзей и получайте <b>+3% от каждой их покупки</b> 💸
+Чем больше друзей — тем больше бонусов! 🎁`,
       { parse_mode: "HTML" }
     );
   });
@@ -1410,9 +1479,10 @@ bot.command("users", async (ctx) => {
 });
 bot.command("orders", async (ctx) => {
   orderBase.find({}).then((res) => {
-    ctx.reply("```js" + JSON.stringify(res, null, 2) + "```", {
-      parse_mode: "Markdown",
-    });
+    console.log(res)
+    // ctx.reply("```js" + JSON.stringify(res, null, 2) + "```", {
+    //   parse_mode: "Markdown",
+    // });
   });
 });
 
@@ -1424,6 +1494,36 @@ const delay = (ms) =>
   });
 
 bot.launch();
+
+
+
+
+
+
+// Дополнительный функционал
+
+function refCode(n = 6) {
+  const symbols =
+    "QWERTYUIOPASDFGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnm1234567890";
+  let user_hash = "";
+  for (let i = 0; i != n; i++) {
+    user_hash += symbols[Math.floor(Math.random() * symbols.length)];
+  }
+  return user_hash;
+}
+
+function createQuickpayLink({ receiver, sum, label, targets, paymentType = "AC" }) {
+  const params = querystring.stringify({
+    receiver,
+    "quickpay-form": "shop",
+    targets,
+    paymentType,
+    sum,
+    label
+  });
+
+  return `https://yoomoney.ru/quickpay/confirm.xml?${params}`;
+}
 
 function dateNow() {
   return new Date().getTime();
