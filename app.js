@@ -892,7 +892,7 @@ bot.action(/^pay_crypto_/i, async (ctx) => {
 
     orderBase.insertOne( { invoice_id, amount, created_at, bot_invoice_url, id }).then(res_2 => {
       ctx.reply(`<b>💳 Ссылка на оплату сгенерирована!</b>
-<blockquote>⚡️ Обратите внимание: сервис может удерживать комиссию до 3%.</blockquote>`
+<blockquote><b>⚡️ Обратите внимание: сервис удерживает 3% комиссии, но мы покрываем её за вас! </b> </blockquote>`
             ,{  
               parse_mode: "HTML",
               reply_markup: {
