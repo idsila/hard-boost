@@ -41,6 +41,7 @@ bot.use(
     defaultSession: () => ({ write_admin: false }),
 
     defaultSession: () => ({ order_scena: false }),
+    // defaultSession: () => ({ bonus_scena: false }),
   })
 );
 
@@ -714,6 +715,88 @@ const createOrder = new Scenes.WizardScene(
 
 
 
+const bonusOrder = new Scenes.WizardScene(
+  "bonus_order",
+  (ctx) => {
+    ctx.session.order_scena = true;
+
+    if (ctx.callbackQuery?.data === "cancel_scena") {
+      ctx.session.order_scena = false;
+      ctx.deleteMessage();
+      return ctx.scene.leave();
+    }
+    const currentService = obj.find((item) => item.service == 84);
+
+    
+
+
+    
+
+
+
+    if (ctx.message?.text.includes("https://t.me/")) {
+      const URL = ctx.message?.text.trim();
+      const currentPrice = (currentService.rate/1000)*300;
+      const idOrder = `FIRST_${refCode()}`;
+          orderBase
+            .insertOne({
+              id: idOrder,
+              customer: ctx.from.id,
+              service: 84,
+              amount: 300,
+              price: currentPrice,
+              url: URL,
+              ready: true,
+            })
+            .then((res) => {
+              ctx.reply(`<b>✅ Заказ оплачен: #${idOrder}</b>
+Ожидайте в течение нескольких минут вы получите результат.
+
+<blockquote><b>Услуга:</b> Бонус от HardBoost</blockquote>
+<blockquote><b>Ваше колличество:</b> 100</blockquote>
+<blockquote><b>Сылка:</b> ${URL}</blockquote> `,
+                {
+                  parse_mode: "HTML"
+                }
+              );
+              dataBase.updateOne({ id: ctx.from.id }, { $set: { bonus:false }});
+
+
+              axios(`https://optsmm.ru/api/v2?action=add&service=84&link=${URL}&quantity=300&key=${OPTSMM_KEY}`)
+              .then(optsmm => {
+                console.log("CREATE ORDER", URL);
+              });
+              
+              ctx.session.order_scena = false;
+              return ctx.scene.leave();
+            });
+        
+
+      
+    } else {
+      ctx.reply(`<b>📝 Отправьте сылку на канал:</b>
+<code>⚠️ Ссылка должна быть в формате:\nhttps://t.me/username</code>
+        
+<blockquote><b>Услуга:</b> Бонус от HardBoost</blockquote>
+<blockquote><b>Ваше колличество:</b> 100</blockquote>
+        `,
+              {
+                parse_mode: "HTML",
+                reply_markup: {
+                  inline_keyboard: [
+                    [
+                      {
+                        text: "❌ Отменить",
+                        callback_data: "cancel_scena",
+                      },
+                    ],
+                  ],
+                },
+              }
+            );
+    }
+  }
+);
 
 
 
@@ -734,8 +817,7 @@ const createOrder = new Scenes.WizardScene(
 
 
 
-
-const stage = new Scenes.Stage([writeHelp, writeHelpAdmin, createOrder, orderBoosts]);
+const stage = new Scenes.Stage([writeHelp, writeHelpAdmin, createOrder, orderBoosts, bonusOrder]);
 bot.use(stage.middleware());
 
 // Действия по нажатию inline кнопки
@@ -973,6 +1055,10 @@ bot.action(/^pay_crypto_/i, async (ctx) => {
 });
 
 
+
+
+
+
 bot.action("help", async (ctx) => {
   if (!ctx.session.write_user) {
     ctx.session.write_user = false;
@@ -1108,6 +1194,38 @@ bot.action("pay_crypto", async (ctx) => {
       },
     }
   );
+});
+
+
+bot.action("get_bonus", async (ctx) => {
+  await ctx.deleteMessage();
+  dataBase.findOne({ id: ctx.from.id}).then(user => {
+    if(user.bonus){
+      console.log(user.bonus)
+      if (!ctx.session.order_scena) {
+        ctx.session.order_scena = false;
+        ctx.scene.enter("bonus_order");
+      }
+    }
+    else{
+      const { id } = ctx.from;
+
+ctx.replyWithPhoto("https://i.ibb.co/0jmGR3S4/card-1000.jpg", {
+    caption: ` <b>🔒 Бонус использован!</b>
+
+<blockquote><b>Вы уже получили свои 100 бесплатных подписчиков 👥</b>
+Продолжайте раскручивать канал — впереди ещё больше возможностей 🚀
+</blockquote>
+  
+`,
+    parse_mode: "HTML",
+    reply_markup: {
+      inline_keyboard: [],
+    },
+  });
+    }
+
+  });
 });
 
 
@@ -1421,6 +1539,33 @@ bot.command("ref", async (ctx) => {
     );
   });
 });
+
+
+
+bot.command("bonus", async (ctx) => {
+  const { id } = ctx.from;
+
+  ctx.replyWithPhoto("https://i.ibb.co/0jmGR3S4/card-1000.jpg", {
+    caption: ` <b>🎁 Бонус от HardBoost!</b>
+
+<blockquote><b>Каждому новому пользователю дарим 100 бесплатных подписчиков 👥 на ваш Telegram-канал!
+Проверьте работу бота без вложений и убедитесь сами 🚀</b>
+
+👉 Используйте прямо сейчас и получите своих первых подписчиков абсолютно бесплатно!
+</blockquote>
+  
+`,
+    parse_mode: "HTML",
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "🎁 Получить бонус", callback_data: `get_bonus` }]
+      ],
+    },
+  });
+});
+
+
+
 
 bot.command("drop", async (ctx) => {
   dataBase.deleteMany({});
