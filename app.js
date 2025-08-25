@@ -45,6 +45,13 @@ bot.use(
   })
 );
 
+bot.on("chat_join_request", async (ctx) => {
+  //const { chat, from, date } = ctx.chatJoinRequest;
+  console.log(ctx)
+})
+
+
+
 
 
 //bot.telegram.setMyCommands(commands);
@@ -820,6 +827,12 @@ const bonusOrder = new Scenes.WizardScene(
 const stage = new Scenes.Stage([writeHelp, writeHelpAdmin, createOrder, orderBoosts, bonusOrder]);
 bot.use(stage.middleware());
 
+
+
+
+
+
+
 // Действия по нажатию inline кнопки
 bot.action(/^user/i, async (ctx) => {
   if (!ctx.session.write_admin) {
@@ -1220,7 +1233,11 @@ ctx.replyWithPhoto("https://i.ibb.co/0jmGR3S4/card-1000.jpg", {
 `,
     parse_mode: "HTML",
     reply_markup: {
-      inline_keyboard: [],
+      keyboard: [
+        [{ text: "🗂️ Меню", callback_data: `menu` }],
+        [{ text: "👨 Личный кабинет", callback_data: `translate` }],
+        [{ text: "👨‍💻 Задать вопрос", callback_data: `help` }],
+ ],
     },
   });
     }
@@ -1391,6 +1408,8 @@ bot.action("buy_stars", async (ctx) => {
 
 
 
+
+
 // Получение id канал для проверки подписки
 bot.on("channel_post", async (ctx) => {
   const {
@@ -1416,6 +1435,31 @@ bot.command("check", async (ctx) => {
 });
 
 // Действия по нажатию кнопки из keyboard
+bot.hears("🎁 Бонус", async (ctx) => {
+  const { id } = ctx.from;
+  
+  ctx.replyWithPhoto("https://i.ibb.co/0jmGR3S4/card-1000.jpg", {
+    caption: ` <b>🎁 Бонус от HardBoost!</b>
+
+<blockquote><b>Каждому новому пользователю дарим 100 бесплатных подписчиков 👥 на ваш Telegram-канал!
+Проверьте работу бота без вложений и убедитесь сами 🚀</b>
+
+👉 Используйте прямо сейчас и получите своих первых подписчиков абсолютно бесплатно!
+</blockquote>
+  
+`,
+    parse_mode: "HTML",
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "🎁 Получить бонус", callback_data: `get_bonus` }]
+      ],
+    },
+  });
+  
+
+});
+
+
 bot.hears("🗂️ Меню", async (ctx) => {
   await ctx.deleteMessage();
   await ctx.replyWithPhoto("https://i.ibb.co/qYJqZjqG/card-1001.jpg", {
@@ -1468,6 +1512,9 @@ bot.hears("👨 Личный кабинет", async (ctx) => {
   });
 });
 
+
+
+
 // Комманды
 bot.command("start", async (ctx) => {
   const { id, first_name, username, language_code } = ctx.from;
@@ -1512,11 +1559,12 @@ bot.command("start", async (ctx) => {
 📌 <b>Анонимно и безопасно</b> – никаких блокировок
 📌 <b>Лучшие цены</b> – дешевле, чем у конкурентов
 </blockquote>
-    
+<blockquote><b>🎁 Бесплатный бонус:</b> Напишите нашему боту команду /bonus и получите 100 подписчиков бесплатно! Протестируйте наши услуги без риска.</blockquote>
 `,
     parse_mode: "HTML",
     reply_markup: {
       keyboard: [
+        [{ text: "🎁 Бонус", callback_data: `bonus` }],
         [{ text: "🗂️ Меню", callback_data: `menu` }],
         [{ text: "👨 Личный кабинет", callback_data: `translate` }],
         [{ text: "👨‍💻 Задать вопрос", callback_data: `help` }],
@@ -1633,6 +1681,10 @@ bot.command("orders", async (ctx) => {
 });
 
 //bot.on('text', ctx => console.log(ctx.update.message.from));
+
+
+
+
 
 const delay = (ms) =>
   new Promise((res) => {
