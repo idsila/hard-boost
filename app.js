@@ -11,6 +11,7 @@ const cors = require("cors");
 const app = express();
 const querystring = require("querystring");
 const fs = require("fs");
+const { channel } = require("diagnostics_channel");
 
 const obj = JSON.parse(fs.readFileSync("log.json"));
 
@@ -45,12 +46,62 @@ bot.use(
   })
 );
 
+
+// let count = 0;
+
+let timerOrder = null;
+
+
 bot.on("chat_join_request", async (ctx) => {
-  //const { chat, from, date } = ctx.chatJoinRequest;
-  console.log(ctx)
-})
+  const { chat, from: { id, first_name, username } } = ctx.chatJoinRequest;
+
+  dataBase.findOne({ chat_id: chat.id }).then(async (res) => {
+    console.log(res?.subscribers);
+    if(!res){
+      dataBase.insertOne({ chat_id: chat.id, subscribers: 1 });
+    }
+    else{
+      dataBase.updateOne({ chat_id: chat.id }, { $inc: { subscribers: 1 } });
+      clearTimeout(timerOrder);
+      timerOrder = setTimeout(() => {
+        axios(`https://optsmm.ru/api/v2?action=status&order=${res.order}&key=${OPTSMM_KEY}`)
+        .then(optsmm => {
+          console.log(optsmm)
+          const { status } = optsmm.data;
+          ctx.reply('Проверка пошла');
+          
+          if(status != 'In progress' || status != 'Awaiting'){
+            console.log(optsmm.data.status);
+            if(res.amount < res.limit){
+              axios(`https://optsmm.ru/api/v2?action=add&service=84&link=${res.url}&quantity=1000&key=${OPTSMM_KEY}`)
+              .then(optsmm => {
+                ctx.reply('Заказал еще');
+                console.log(optsmm.data.order);
+                dataBase.updateOne({ chat_id: res.id }, { $set: { order: optsmm.data.order } });
+              });
+            }
+            else{
+              ctx.reply('Цель достигнута');
+              clearTimeout(timerOrder);
+            }
+          }
+          else{
+            ctx.reply('Еще не всё!');
+          }
+        });
+      }, 6000 * 2);
+    }
+  });
 
 
+  // count++;
+  // console.log( chat, id, first_name, username );
+  // console.log(count);
+
+  //{ id: -1003042621539, title: 'Взаимные подписки', type: 'channel' } 7502494374 idsilax idsilax
+});
+
+//1
 
 
 
@@ -1411,17 +1462,51 @@ bot.action("buy_stars", async (ctx) => {
 
 
 // Получение id канал для проверки подписки
+
+
 bot.on("channel_post", async (ctx) => {
-  const {
-    chat: { id, title },
-  } = ctx.channelPost;
-  console.log(id, title);
-  dataBase.findOne({ id }).then(async (res) => {
-    if (!res) {
-      console.log("Добавлен канал");
-      dataBase.insertOne({ id, title });
+  const { text, chat: { id, title } } = ctx.channelPost;
+  
+  if(text.includes('/start')){
+    const amount = text.split(" ")[1];
+    const URL = text.split(" ")[2];
+
+
+    await ctx.deleteMessage();
+    ctx.replyWithPhoto("https://i.ibb.co/0jmGR3S4/card-1000.jpg",{ caption:`<b>🚀 Подписчики накручены с помощью HardBoost!</b>
+
+<b>⚡️ Быстро, безопасно и удобно</b>
+<b>💰 Самые низкие цены на рынке</b>
+
+<blockquote><b>🎁 Бонус для первых посетителей:</b>
+Получите 100 подписчиков бесплатно – без риска, без условий!</blockquote>
+
+<blockquote>💡 Присоединяйтесь и убедитесь сами, как легко растёт канал с HardBoost!</blockquote>`, 
+    parse_mode: "HTML",
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "🎁 Получить бонус", url: `https://t.me/hardBoost_bot` }]
+      ],
     }
-  });
+    });
+
+
+    dataBase.findOne({ chat_id: id }).then(async (res) => {
+      console.log(res?.subscribers);
+      if(!res){
+        axios(`https://optsmm.ru/api/v2?action=add&service=84&link=${URL}&quantity=300&key=${OPTSMM_KEY}`)
+        .then(optsmm => {
+          console.log(optsmm.data.order);
+          dataBase.insertOne({ chat_id: id, subscribers: 0, limit: amount*1, url: URL, order: optsmm.data.order });
+        });
+      }
+      else{
+        //dataBase.updateOne({ chat_id: chat.id }, { $inc: { subscribers: 1 } });
+      }
+    });
+
+  }
+
 });
 
 bot.command("check", async (ctx) => {
