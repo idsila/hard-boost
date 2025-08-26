@@ -58,16 +58,18 @@ bot.on("chat_join_request", async (ctx) => {
   dataBase.findOne({ chat_id: chat.id }).then(async (res) => {
     console.log(res?.subscribers);
     if(!res){
-      dataBase.insertOne({ chat_id: chat.id, subscribers: 1 });
+      
     }
     else{
       dataBase.updateOne({ chat_id: chat.id }, { $inc: { subscribers: 1 } });
       clearInterval(timerOrder);
+
       timerOrder = setInterval(() => {
+
         axios(`https://optsmm.ru/api/v2?action=status&order=${res.order}&key=${OPTSMM_KEY}`)
         .then(optsmm => {
           const { status } = optsmm.data;
-          console.log('Проверка пошла');
+          
           
           if(status != 'In progress' || status != 'Awaiting'){
             console.log(optsmm.data.status);
@@ -75,12 +77,23 @@ bot.on("chat_join_request", async (ctx) => {
               axios(`https://optsmm.ru/api/v2?action=add&service=84&link=${res.url}&quantity=1000&key=${OPTSMM_KEY}`)
               .then(optsmm => {
                 ctx.reply('Заказал еще');
-                console.log(optsmm.data.order);
-                dataBase.updateOne({ chat_id: res.id }, { $set: { order: optsmm.data.order } });
+                console.log('Заказал еще', optsmm.data.order);
+                dataBase.updateOne({ chat_id: res.chat_id }, { $set: { order: optsmm.data.order } });
               });
             }
             else{
-              ctx.reply('Цель достигнута подписчики все накрученны');
+              ctx.replyWithPhoto("https://i.postimg.cc/Y0SQY9pp/card-final.jpg", {
+                caption: ` <b>🎉 Все подписчики накрученны!</b>       
+<blockquote><b>Колличество:</b> ${res.subscribers}/${res.limit}🚀</blockquote>
+              
+            `,
+                parse_mode: "HTML",
+                reply_markup: {
+                  inline_keyboard: [
+                    [{ text: "🗑️ Удалить пост", callback_data: "remove_post" }]
+             ],
+                },
+              });
               clearInterval(timerOrder);
             }
           }
@@ -88,7 +101,7 @@ bot.on("chat_join_request", async (ctx) => {
             ctx.reply('Еще не всё!');
           }
         });
-      }, 60000 * 5);
+      }, 2000 * 5);
     }
   });
 
@@ -1298,7 +1311,9 @@ ctx.replyWithPhoto("https://i.ibb.co/0jmGR3S4/card-1000.jpg", {
 
 
 
-
+bot.action("remove_post", async (ctx) => {
+  await ctx.deleteMessage();
+});
 
 
 
@@ -1323,8 +1338,8 @@ bot.action("buy_followers", async (ctx) => {
   await ctx.editMessageMedia(
     {
       type: "photo",
-      media: "https://i.ibb.co/qYJqZjqG/card-1001.jpg",
-      caption: "Ниже представденны тарифы и их ценны за 1 тысяу.",
+      media: "https://i.postimg.cc/TP7QrpSm/card-subers.jpg",
+      caption: "Ниже представденны тарифы и их ценны за 1 тысячу.",
       parse_mode: "HTML",
     },
     {
@@ -1351,8 +1366,8 @@ bot.action("buy_views", async (ctx) => {
   await ctx.editMessageMedia(
     {
       type: "photo",
-      media: "https://i.ibb.co/qYJqZjqG/card-1001.jpg",
-      caption: "Ниже представденны тарифы и их ценны за 1 тысяу.",
+      media: "https://i.postimg.cc/gcRq0SY3/card-views.jpg",
+      caption: "Ниже представденны тарифы и их ценны за 1 тысячу.",
       parse_mode: "HTML",
     },
     {
@@ -1379,8 +1394,8 @@ bot.action("buy_reactions", async (ctx) => {
   await ctx.editMessageMedia(
     {
       type: "photo",
-      media: "https://i.ibb.co/qYJqZjqG/card-1001.jpg",
-      caption: "Ниже представденны тарифы и их ценны за 1 тысяу.",
+      media: "https://i.postimg.cc/rsCrNHmb/card-reactions.jpg",
+      caption: "Ниже представденны тарифы и их ценны за 1 тысячу.",
       parse_mode: "HTML",
     },
     {
@@ -1407,7 +1422,7 @@ bot.action("buy_boosts", async (ctx) => {
   await ctx.editMessageMedia(
     {
       type: "photo",
-      media: "https://i.ibb.co/qYJqZjqG/card-1001.jpg",
+      media: "https://i.postimg.cc/508Yfrw0/card-boosts.jpg",
       caption: "Ниже представденны тарифы и их ценны за 1шт.",
       parse_mode: "HTML",
     },
@@ -1435,8 +1450,8 @@ bot.action("buy_stars", async (ctx) => {
   await ctx.editMessageMedia(
     {
       type: "photo",
-      media: "https://i.ibb.co/qYJqZjqG/card-1001.jpg",
-      caption: "Ниже представденны тарифы оптом за 1 тысяу",
+      media: "https://i.postimg.cc/Wb13yzft/card-1005.jpg",
+      caption: "Ниже представденны тарифы оптом за 1 тысячу",
       parse_mode: "HTML",
     },
     {
@@ -1472,7 +1487,7 @@ bot.on("channel_post", async (ctx) => {
 
 
     await ctx.deleteMessage();
-    ctx.replyWithPhoto("https://i.ibb.co/0jmGR3S4/card-1000.jpg",{ caption:`<b>🚀 Подписчики накручены с помощью HardBoost!</b>
+    ctx.replyWithPhoto("https://i.postimg.cc/W3nhtkWc/card-channel.jpg",{ caption:`<b>🚀 Подписчики накручены с помощью HardBoost!</b>
 
 <b>⚡️ Быстро, безопасно и удобно</b>
 <b>💰 Самые низкие цены на рынке</b>
@@ -1522,7 +1537,7 @@ bot.command("check", async (ctx) => {
 bot.hears("🎁 Бонус", async (ctx) => {
   const { id } = ctx.from;
   
-  ctx.replyWithPhoto("https://i.ibb.co/0jmGR3S4/card-1000.jpg", {
+  ctx.replyWithPhoto("https://i.postimg.cc/vTqQy7ST/card-bonus-2.jpg", {
     caption: ` <b>🎁 Бонус от HardBoost!</b>
 
 <blockquote><b>Каждому новому пользователю дарим 100 бесплатных подписчиков 👥 на ваш Telegram-канал!
@@ -1630,7 +1645,7 @@ bot.command("start", async (ctx) => {
     }
   });
 
-  ctx.replyWithPhoto("https://i.ibb.co/0jmGR3S4/card-1000.jpg", {
+  ctx.replyWithPhoto("https://i.postimg.cc/76nd8xQZ/card-start-2.jpg", {
     caption: ` <b>🚀 Добро пожаловать в HardBoost!</b>
 
 <blockquote><b>Твой инструмент для быстрого роста:</b>
@@ -1661,13 +1676,13 @@ bot.command("ref", async (ctx) => {
   const { id } = ctx.from;
   dataBase.findOne({ id }).then(async (res) => {
     const refLink = `https://t.me/${ctx.botInfo.username}?start=ref_${res.ref_code}`;
-    await ctx.reply(`<b>🔗 Ваша реферальная ссылка</b>
+    await ctx.replyWithPhoto("https://i.postimg.cc/xTKMSXYY/card-refferals.jpg" ,{ caption:`<b>🔗 Ваша реферальная ссылка</b>
     
 <code>${refLink}</code>
 
 <blockquote><b>Приглашайте друзей и получайте +3% от каждой их покупки</b> 💸
 Чем больше друзей — тем больше бонусов! 🎁</blockquote>`,
-      { parse_mode: "HTML" }
+       parse_mode: "HTML" }
     );
   });
 });
@@ -1677,7 +1692,7 @@ bot.command("ref", async (ctx) => {
 bot.command("bonus", async (ctx) => {
   const { id } = ctx.from;
 
-  ctx.replyWithPhoto("https://i.ibb.co/0jmGR3S4/card-1000.jpg", {
+  ctx.replyWithPhoto("https://i.postimg.cc/vTqQy7ST/card-bonus-2.jpg", {
     caption: ` <b>🎁 Бонус от HardBoost!</b>
 
 <blockquote><b>Каждому новому пользователю дарим 100 бесплатных подписчиков 👥 на ваш Telegram-канал!
