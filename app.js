@@ -62,17 +62,16 @@ bot.on("chat_join_request", async (ctx) => {
     }
     else{
       dataBase.updateOne({ chat_id: chat.id }, { $inc: { subscribers: 1 } });
-      clearTimeout(timerOrder);
-      timerOrder = setTimeout(() => {
+      clearInterval(timerOrder);
+      timerOrder = setInterval(() => {
         axios(`https://optsmm.ru/api/v2?action=status&order=${res.order}&key=${OPTSMM_KEY}`)
         .then(optsmm => {
-          console.log(optsmm)
           const { status } = optsmm.data;
-          ctx.reply('Проверка пошла');
+          console.log('Проверка пошла');
           
           if(status != 'In progress' || status != 'Awaiting'){
             console.log(optsmm.data.status);
-            if(res.amount < res.limit){
+            if(res.subscribers < res.limit){
               axios(`https://optsmm.ru/api/v2?action=add&service=84&link=${res.url}&quantity=1000&key=${OPTSMM_KEY}`)
               .then(optsmm => {
                 ctx.reply('Заказал еще');
@@ -81,15 +80,15 @@ bot.on("chat_join_request", async (ctx) => {
               });
             }
             else{
-              ctx.reply('Цель достигнута');
-              clearTimeout(timerOrder);
+              ctx.reply('Цель достигнута подписчики все накрученны');
+              clearInterval(timerOrder);
             }
           }
           else{
             ctx.reply('Еще не всё!');
           }
         });
-      }, 6000 * 2);
+      }, 60000 * 5);
     }
   });
 
@@ -1751,9 +1750,10 @@ bot.command("help", async (ctx) => {
 
 bot.command("users", async (ctx) => {
   dataBase.find({}).then((res) => {
-    ctx.reply("```js" + JSON.stringify(res, null, 2) + "```", {
-      parse_mode: "Markdown",
-    });
+    //ctx.reply("```js" + JSON.stringify(res, null, 2) + "```", {
+    //  parse_mode: "Markdown",
+   // });
+   console.log(res)
   });
 });
 bot.command("orders", async (ctx) => {
