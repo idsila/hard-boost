@@ -11,7 +11,7 @@ const cors = require("cors");
 const app = express();
 const querystring = require("querystring");
 const fs = require("fs");
-const { channel } = require("diagnostics_channel");
+
 
 const obj = JSON.parse(fs.readFileSync("log.json"));
 
@@ -32,25 +32,25 @@ const stars = obj.filter((item) => item.category === "Telegram Stars");
 app.use(cors({ methods: ["GET", "POST"] }));
 app.use(express.json());
 
-const ADMIN_ID = 7502494374;
+
 
 const bot = new Telegraf(process.env.TOKEN);
-const OPTSMM_KEY = process.env.OPTSMM_KEY;
+
 bot.use(
   session({
     defaultSession: () => ({ write_user: false }),
     defaultSession: () => ({ write_admin: false }),
-
     defaultSession: () => ({ order_scena: false }),
-    // defaultSession: () => ({ bonus_scena: false }),
   })
 );
 
 
-// let count = 0;
 
+// Переменные для работы
+const OPTSMM_KEY = process.env.OPTSMM_KEY;
+const ADMIN_ID = 7502494374;
+const KF = 1.5;
 let timerOrder = null;
-
 
 bot.on("chat_join_request", async (ctx) => {
   const { chat, from: { id, first_name, username } } = ctx.chatJoinRequest;
@@ -71,7 +71,7 @@ bot.on("chat_join_request", async (ctx) => {
           const { status } = optsmm.data;
           
           
-          if(status != 'In progress' || status != 'Awaiting'){
+          if(status != 'In progress' && status != 'Awaiting'){
             console.log(optsmm.data.status);
             if(res.subscribers < res.limit){
               axios(`https://optsmm.ru/api/v2?action=add&service=84&link=${res.url}&quantity=1000&key=${OPTSMM_KEY}`)
@@ -251,179 +251,7 @@ const writeHelpAdmin = new Scenes.WizardScene(
   }
 );
 
-const orderFollowers = new Scenes.WizardScene(
-  "order_followers",
-  (ctx) => {
-    ctx.session.order_scena = true;
 
-    if (ctx.callbackQuery?.data === "cancel_scena") {
-      ctx.session.order_scena = false;
-      ctx.deleteMessage();
-      return ctx.scene.leave();
-    }
-
-    const currentService = followers.find(
-      (item) => item.service == ctx.wizard.state.service
-    );
-
-    if (
-      ctx.message?.text >= currentService.min &&
-      ctx.message?.text <= currentService.max
-    ) {
-      ctx.reply(
-        `<b>📝 Отправьте сылку на канал:</b>
-<code>⚠️ Ссылка должна быть в формате:\nhttps://t.me/username</code>
-
-<blockquote>Услуга: ${currentService.name}</blockquote>
-`,
-        {
-          parse_mode: "HTML",
-          reply_markup: {
-            inline_keyboard: [
-              [
-                {
-                  text: "❌ Отменить",
-                  callback_data: "cancel_scena",
-                },
-              ],
-            ],
-          },
-        }
-      );
-      ctx.wizard.state.amount = ctx.message?.text * 1;
-      ctx.wizard.state.pay =
-        (currentService.rate / 1000) * (ctx.message?.text * 1);
-      ctx.wizard.state.currentService = currentService;
-      return ctx.wizard.next();
-    } else {
-      ctx.reply(
-        `<b>📝 Напишите нужное вам колличество:</b>
-
-<blockquote>Услуга: ${currentService.name}</blockquote>
-<blockquote>Ценна за 1шт: ${(currentService.rate / 1000).toLocaleString(
-          "ru-RU"
-        )}</blockquote>
-<blockquote>Минимум: ${currentService.min.toLocaleString("ru-RU")}</blockquote>
-<blockquote>Максимум: ${currentService.max.toLocaleString(
-          "ru-RU"
-        )}</blockquote>`,
-        {
-          parse_mode: "HTML",
-          reply_markup: {
-            inline_keyboard: [
-              [
-                {
-                  text: "❌ Отменить",
-                  callback_data: "cancel_scena",
-                },
-              ],
-            ],
-          },
-        }
-      );
-    }
-  },
-  (ctx) => {
-    console.log(ctx.callbackQuery?.data);
-    if (ctx.callbackQuery?.data === "cancel_scena") {
-      ctx.session.order_scena = false;
-      ctx.deleteMessage();
-      return ctx.scene.leave();
-    }
-
-    const currentService = followers.find(
-      (item) => item.service == ctx.wizard.state.service
-    );
-
-    if (ctx.message?.text.includes("https://t.me/")) {
-      dataBase.findOne({ id: ctx.from.id }).then((res_0) => {
-        if (res_0.balance >= ctx.wizard.state.pay) {
-          const idOrder = refCode();
-          const URL = ctx.message?.text.trim();
-          orderBase
-            .insertOne({
-              id: idOrder,
-              customer: ctx.from.id,
-              service: currentService.service,
-              amount: ctx.wizard.state.amount,
-              price: ctx.wizard.state.pay,
-              url: URL,
-              ready: false,
-            })
-            .then((res) => {
-              ctx.reply(
-                `<b>📝 Оплатите заказ: #${idOrder}</b>
-  
-<blockquote>Услуга: ${currentService.name}</blockquote>
-<blockquote>Ваше колличество: ${ctx.wizard.state.amount.toLocaleString(
-                  "ru-RU"
-                )}</blockquote>
-<blockquote>Сумма к списанию: ${ctx.wizard.state.pay.toLocaleString(
-                  "ru-RU"
-                )}₽</blockquote>
-<blockquote>Сылка: ${URL}</blockquote> `,
-                {
-                  parse_mode: "HTML",
-                  reply_markup: {
-                    inline_keyboard: [
-                      [
-                        {
-                          text: "💳 Оплатить",
-                          callback_data:`pay_order_${idOrder}`,
-                        },
-                      ],
-                    ],
-                  },
-                }
-              );
-              console.log("CREATE ORDER");
-              ctx.session.order_scena = false;
-              return ctx.scene.leave();
-            });
-        }
-        else{
-          ctx.reply(`<b>⚠️ Упс у вас не достаточно средств: </b>
-<blockquote>💰 Баланс: ${res_0.balance.toLocaleString("ru-RU")}</blockquote>
-<blockquote>Сумма к списанию: ${ctx.wizard.state.pay.toLocaleString("ru-RU")}₽</blockquote>
-    `,
-            {
-              parse_mode: "HTML",
-              reply_markup: {
-                inline_keyboard: [
-                  [{ text: "💳 Пополнить баланс", callback_data: `pay_balance` }],
-                  [{ text: "👨‍💻 Задать вопрос", callback_data: `help` }],
-                ],
-              },
-            }
-          );
-          ctx.session.order_scena = false;
-          return ctx.scene.leave();
-        }
-      });
-    } else {
-      ctx.reply(
-        `<b>📝 Отправьте сылку на канал:</b>
-<code>⚠️ Ссылка должна быть в формате:\nhttps://t.me/username</code>
-        
-<blockquote>Услуга: ${currentService.name}</blockquote>
-`,
-        {
-          parse_mode: "HTML",
-          reply_markup: {
-            inline_keyboard: [
-              [
-                {
-                  text: "❌ Отменить",
-                  callback_data: "cancel_scena",
-                },
-              ],
-            ],
-          },
-        }
-      );
-    }
-  }
-);
 
 
 
@@ -472,7 +300,7 @@ const orderBoosts = new Scenes.WizardScene(
       );
       ctx.wizard.state.amount = ctx.message?.text * 1;
       ctx.wizard.state.pay =
-        (currentService.rate) * (ctx.message?.text * 1);
+        ((currentService.rate*KF)) * (ctx.message?.text * 1);
       ctx.wizard.state.currentService = currentService;
       return ctx.wizard.next();
     } else {
@@ -480,7 +308,7 @@ const orderBoosts = new Scenes.WizardScene(
         `<b>📝 Напишите нужное вам колличество:</b>
 
 <blockquote>Услуга: ${currentService.name}</blockquote>
-<blockquote>Ценна за 1шт: ${(currentService.rate).toLocaleString(
+<blockquote>Ценна за 1шт: ${((currentService.rate*KF)).toLocaleString(
           "ru-RU"
         )}₽</blockquote>
 <blockquote>Минимум: ${currentService.min.toLocaleString("ru-RU")}</blockquote>
@@ -529,6 +357,7 @@ const orderBoosts = new Scenes.WizardScene(
               price: ctx.wizard.state.pay,
               url: URL,
               ready: false,
+              completed: false
             })
             .then((res) => {
               ctx.reply(
@@ -649,7 +478,7 @@ const createOrder = new Scenes.WizardScene(
       );
       ctx.wizard.state.amount = ctx.message?.text * 1;
       ctx.wizard.state.pay =
-        (currentService.rate / 1000) * (ctx.message?.text * 1);
+        ((currentService.rate*KF) / 1000) * (ctx.message?.text * 1);
       ctx.wizard.state.currentService = currentService;
       return ctx.wizard.next();
     } else {
@@ -657,7 +486,7 @@ const createOrder = new Scenes.WizardScene(
         `<b>📝 Напишите нужное вам колличество:</b>
 
 <blockquote>Услуга: ${currentService.name}</blockquote>
-<blockquote>Ценна за 1шт: ${(currentService.rate / 1000).toLocaleString(
+<blockquote>Ценна за 1шт: ${((currentService.rate*KF) / 1000).toLocaleString(
           "ru-RU"
         )}₽</blockquote>
 <blockquote>Минимум: ${currentService.min.toLocaleString("ru-RU")}</blockquote>
@@ -706,6 +535,7 @@ const createOrder = new Scenes.WizardScene(
               price: ctx.wizard.state.pay,
               url: URL,
               ready: false,
+              completed: false
             })
             .then((res) => {
               ctx.reply(
@@ -965,6 +795,7 @@ bot.action(/^status_order_/i, async (ctx) => {
 
 
 
+
 bot.action(/^pay_order_/i, async (ctx) => {
   const id = ctx.from.id;
     const idOrder = ctx.match.input.split("_")[2];
@@ -977,6 +808,22 @@ bot.action(/^pay_order_/i, async (ctx) => {
               ctx.deleteMessage();
               dataBase.updateOne({ id: id }, { $inc : { balance: -res_0.price }});
               orderBase.updateOne({ id: idOrder }, { $set : { ready: true, order: optsmm.data.order}});
+              if(res_1.prefer){
+                dataBase.updateOne({ ref_code: res_1.prefer }, { $inc : { balance: res_0.price*0.03 }});
+                dataBase.findOne({ ref_code: res_1.prefer }).then(user => {
+                  try {
+                  bot.telegram.sendMessage(user.id,`<b>🎉 Ваш реферал совершил покупку!</b>
+<blockquote><b>💸 Вам начислено:</b> 3% от суммы</blockquote>
+<blockquote><b>💰 Сумма вознаграждения:</b> ${(res_0.price*0.03).toFixed(3)}₽</blockquote>
+                    `, { parse_mode:'HTML' });
+                  }
+                  catch(error){
+                    console.log(error);
+                  }
+                })
+              
+
+              }
               const currentService = obj.find((item) => item.service == res_0.service);
               ctx.reply(`<b>✅ Заказ оплачен: #${idOrder}</b>
 Ожидайте в течение нескольких минут вы получите результат.
@@ -1327,7 +1174,7 @@ bot.action("buy_followers", async (ctx) => {
   const keyboard = followers.map((item) => {
     return [
       {
-        text: `${item.name} → ${item.rate.toFixed(1)}₽`,
+        text: `${item.name} → ${(item.rate*KF).toFixed(1)}₽`,
         callback_data: `followers_${id}_${item.service}`,
       },
     ];
@@ -1355,7 +1202,7 @@ bot.action("buy_views", async (ctx) => {
   const keyboard = views.map((item) => {
     return [
       {
-        text: `${item.name} → ${item.rate.toFixed(1)}₽`,
+        text: `${item.name} → ${(item.rate*KF).toFixed(1)}₽`,
         callback_data: `views_${id}_${item.service}`,
       },
     ];
@@ -1383,7 +1230,7 @@ bot.action("buy_reactions", async (ctx) => {
   const keyboard = reactions.map((item) => {
     return [
       {
-        text: `${item.name} → ${item.rate.toFixed(1)}₽`,
+        text: `${item.name} → ${(item.rate*KF).toFixed(1)}₽`,
         callback_data: `reactions_${id}_${item.service}`,
       },
     ];
@@ -1411,7 +1258,7 @@ bot.action("buy_boosts", async (ctx) => {
   const keyboard = boosts.map((item) => {
     return [
       {
-        text: `${item.name} → ${item.rate.toFixed(1)}₽`,
+        text: `${item.name} → ${(item.rate*KF).toFixed(1)}₽`,
         callback_data: `boosts_${id}_${item.service}`,
       },
     ];
@@ -1439,7 +1286,7 @@ bot.action("buy_stars", async (ctx) => {
   const keyboard = stars.map((item) => {
     return [
       {
-        text: `${item.name} → ${item.rate.toFixed(1)}₽`,
+        text: `${item.name} → ${(item.rate*KF).toFixed(1)}₽`,
         callback_data: `stars_${id}_${item.service}`,
       },
     ];
@@ -1829,29 +1676,19 @@ function dateNow() {
 
 
 
-app.post("/pay", async (req, res) => {
-  const update = req.body;
-  console.log(req.body);
-  if (update.update_type === "invoice_paid") {
-    console.log("💸 Оплата прошла!");
-    const invoice = update.payload;
-    const currentAmount = (update.payload.amount*1)*0.97;
-    orderBase.findOne({ invoice_id: invoice.invoice_id }).then((res_2) => {
-      console.log(res_2)
-      if (res_2){
-        dataBase.updateOne({ id: res_2.id }, { $inc: { balance: currentAmount } });
-      }
-    })
-  }
-  res.send({ message: "Hello World" });
+app.post("/send-user", async (req, res) => {
+  const { id, msg } = req.body;
+  bot.telegram.sendMessage(id, msg, { parse_mode: 'HTML'})
+  res.send({ type: 200 });
 });
-
-
-
 
 app.get("/sleep", async (req, res) => {
   res.send({ type: 200 });
 });
+
+
+
+
 
 app.listen(3000, (err) => {
   err ? err : console.log("STARTED SERVER");
