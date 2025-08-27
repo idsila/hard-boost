@@ -48,7 +48,7 @@ bot.use(
 
 // Переменные для работы
 const OPTSMM_KEY = process.env.OPTSMM_KEY;
-const ADMIN_ID = 7502494374;
+const ADMIN_ID = process.env.ADMIN_ID;
 const KF = 1.5;
 let timerOrder = null;
 
@@ -106,11 +106,6 @@ bot.on("chat_join_request", async (ctx) => {
   });
 
 
-  // count++;
-  // console.log( chat, id, first_name, username );
-  // console.log(count);
-
-  //{ id: -1003042621539, title: 'Взаимные подписки', type: 'channel' } 7502494374 idsilax idsilax
 });
 
 //1
@@ -119,8 +114,8 @@ bot.on("chat_join_request", async (ctx) => {
 
 //bot.telegram.setMyCommands(commands);
 
-//Сцены
 
+//Сцены
 const writeHelp = new Scenes.WizardScene(
   "write_help",
   (ctx) => {
@@ -1481,7 +1476,7 @@ bot.command("start", async (ctx) => {
         ref_code: refCode(),
         prefer: refHashRaw ? refHashRaw.split("_")[1] : 0 ,
         date: dateNow(),
-        balance: 14809,
+        balance: 0,
       });
       if (refHashRaw) {
         const refHash = refHashRaw.split("_")[1];
@@ -1685,8 +1680,6 @@ app.post("/send-user", async (req, res) => {
 app.get("/sleep", async (req, res) => {
   res.send({ type: 200 });
 });
-
-
 
 
 
