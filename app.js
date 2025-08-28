@@ -12,6 +12,11 @@ const app = express();
 const querystring = require("querystring");
 const fs = require("fs");
 
+// Переменные для работы
+const OPTSMM_KEY = process.env.OPTSMM_KEY;
+const ADMIN_ID = process.env.ADMIN_ID;
+const KF = 1.5;
+let timerOrder = null;
 
 let obj = JSON.parse(fs.readFileSync("log.json"));
 axios(`https://optsmm.ru/api/v2?action=services&key=${OPTSMM_KEY}`).then(res => { obj = res.data; });
@@ -47,11 +52,7 @@ bot.use(
 
 
 
-// Переменные для работы
-const OPTSMM_KEY = process.env.OPTSMM_KEY;
-const ADMIN_ID = process.env.ADMIN_ID;
-const KF = 1.5;
-let timerOrder = null;
+
 
 bot.on("chat_join_request", async (ctx) => {
   const { chat, from: { id, first_name, username } } = ctx.chatJoinRequest;
@@ -987,7 +988,7 @@ bot.action("help", async (ctx) => {
 
 bot.action("menu", async (ctx) => {
   ctx.replyWithPhoto("https://i.ibb.co/qYJqZjqG/card-1001.jpg", {
-    caption: "Выберите один из представленных товаров.",
+    caption: "<blockquote><b>Выберите один из представленных товаров.</b></blockquote>",
     parse_mode: "HTML",
     reply_markup: {
       inline_keyboard: [
@@ -1012,7 +1013,7 @@ bot.action("menu_back", async (ctx) => {
     {
       type: "photo",
       media: "https://i.ibb.co/qYJqZjqG/card-1001.jpg",
-      caption: "Выберите один из представленных товаров.",
+      caption: "<blockquote><b>Выберите один из представленных товаров.</b></blockquote>",
       parse_mode: "HTML",
     },
     {
@@ -1182,7 +1183,7 @@ bot.action("buy_followers", async (ctx) => {
     {
       type: "photo",
       media: "https://i.postimg.cc/LX8g0C3p/card-subers.jpg",
-      caption: "Ниже представденны тарифы и их ценны за 1 тысячу.",
+      caption: "<blockquote><b>Ниже представлены тарифы и их цены за 1 тысячу.</b></blockquote>",
       parse_mode: "HTML",
     },
     {
@@ -1210,7 +1211,7 @@ bot.action("buy_views", async (ctx) => {
     {
       type: "photo",
       media: "https://i.postimg.cc/zfcH6wtH/card-views.jpg",
-      caption: "Ниже представденны тарифы и их ценны за 1 тысячу.",
+      caption: "<blockquote><b>Ниже представлены тарифы и их цены за 1 тысячу.</b></blockquote>",
       parse_mode: "HTML",
     },
     {
@@ -1238,7 +1239,7 @@ bot.action("buy_reactions", async (ctx) => {
     {
       type: "photo",
       media: "https://i.postimg.cc/cCQKvpsf/card-reactions.jpg",
-      caption: "Ниже представденны тарифы и их ценны за 1 тысячу.",
+      caption: "<blockquote><b>Ниже представлены тарифы и их цены за 1 тысячу.</b></blockquote>",
       parse_mode: "HTML",
     },
     {
@@ -1266,7 +1267,7 @@ bot.action("buy_boosts", async (ctx) => {
     {
       type: "photo",
       media: "https://i.postimg.cc/C5H1hbNN/card-boosts.jpg",
-      caption: "Ниже представденны тарифы и их ценны за 1шт.",
+      caption: "<blockquote><b>Ниже представлены тарифы и их цены за 1 шт.</b></blockquote>",
       parse_mode: "HTML",
     },
     {
@@ -1294,7 +1295,7 @@ bot.action("buy_stars", async (ctx) => {
     {
       type: "photo",
       media: "https://i.postimg.cc/Wb13yzft/card-1005.jpg",
-      caption: "Ниже представденны тарифы оптом за 1 тысячу",
+      caption: "<blockquote><b>Ниже представлены тарифы и их цены за 1 тысячу.</b></blockquote>",
       parse_mode: "HTML",
     },
     {
@@ -1405,7 +1406,7 @@ bot.hears("🎁 Бонус", async (ctx) => {
 bot.hears("🗂️ Меню", async (ctx) => {
   await ctx.deleteMessage();
   await ctx.replyWithPhoto("https://i.ibb.co/qYJqZjqG/card-1001.jpg", {
-    caption: "Выберите один из представленных товаров.",
+    caption: "<blockquote><b>Выберите один из представленных товаров.</b></blockquote>",
     parse_mode: "HTML",
     reply_markup: {
       inline_keyboard: [
