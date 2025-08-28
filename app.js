@@ -13,7 +13,8 @@ const querystring = require("querystring");
 const fs = require("fs");
 
 
-const obj = JSON.parse(fs.readFileSync("log.json"));
+let obj = JSON.parse(fs.readFileSync("log.json"));
+axios(`https://optsmm.ru/api/v2?action=services&key=${OPTSMM_KEY}`).then(res => { obj = res.data; });
 
 const followers = obj.filter((item) => item.category === "Telegram");
 const views = obj.filter(
@@ -1180,7 +1181,7 @@ bot.action("buy_followers", async (ctx) => {
   await ctx.editMessageMedia(
     {
       type: "photo",
-      media: "https://i.postimg.cc/TP7QrpSm/card-subers.jpg",
+      media: "https://i.postimg.cc/LX8g0C3p/card-subers.jpg",
       caption: "Ниже представденны тарифы и их ценны за 1 тысячу.",
       parse_mode: "HTML",
     },
@@ -1208,7 +1209,7 @@ bot.action("buy_views", async (ctx) => {
   await ctx.editMessageMedia(
     {
       type: "photo",
-      media: "https://i.postimg.cc/gcRq0SY3/card-views.jpg",
+      media: "https://i.postimg.cc/zfcH6wtH/card-views.jpg",
       caption: "Ниже представденны тарифы и их ценны за 1 тысячу.",
       parse_mode: "HTML",
     },
@@ -1236,7 +1237,7 @@ bot.action("buy_reactions", async (ctx) => {
   await ctx.editMessageMedia(
     {
       type: "photo",
-      media: "https://i.postimg.cc/rsCrNHmb/card-reactions.jpg",
+      media: "https://i.postimg.cc/cCQKvpsf/card-reactions.jpg",
       caption: "Ниже представденны тарифы и их ценны за 1 тысячу.",
       parse_mode: "HTML",
     },
@@ -1264,7 +1265,7 @@ bot.action("buy_boosts", async (ctx) => {
   await ctx.editMessageMedia(
     {
       type: "photo",
-      media: "https://i.postimg.cc/508Yfrw0/card-boosts.jpg",
+      media: "https://i.postimg.cc/C5H1hbNN/card-boosts.jpg",
       caption: "Ниже представденны тарифы и их ценны за 1шт.",
       parse_mode: "HTML",
     },
