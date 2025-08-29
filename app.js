@@ -57,61 +57,61 @@ bot.use(
 
 
 
-bot.on("chat_join_request", async (ctx) => {
-  const { chat, from: { id, first_name, username } } = ctx.chatJoinRequest;
+// bot.on("chat_join_request", async (ctx) => {
+//   const { chat, from: { id, first_name, username } } = ctx.chatJoinRequest;
 
-  dataBase.findOne({ chat_id: chat.id }).then(async (res) => {
-    console.log(res?.subscribers);
-    if(!res){}
-    else{
-      dataBase.updateOne({ chat_id: chat.id }, { $inc: { subscribers: 1 } });
-      clearInterval(timerOrder);
+//   dataBase.findOne({ chat_id: chat.id }).then(async (res) => {
+//     console.log(res?.subscribers);
+//     if(!res){}
+//     else{
+//       dataBase.updateOne({ chat_id: chat.id }, { $inc: { subscribers: 1 } });
+//       clearInterval(timerOrder);
 
-      timerOrder = setInterval(() => {
+//       timerOrder = setInterval(() => {
 
-        axios(`https://optsmm.ru/api/v2?action=status&order=${res.order}&key=${OPTSMM_KEY}`)
-        .then(optsmm => {
-          const { status } = optsmm.data;
+//         axios(`https://optsmm.ru/api/v2?action=status&order=${res.order}&key=${OPTSMM_KEY}`)
+//         .then(optsmm => {
+//           const { status } = optsmm.data;
           
           
-          if(status != 'In progress' && status != 'Awaiting'){
-            console.log(optsmm.data.status);
-            if(res.subscribers < res.limit){
-              axios(`https://optsmm.ru/api/v2?action=add&service=84&link=${res.url}&quantity=10000&key=${OPTSMM_KEY}`)
-              .then(optsmm => {
-                ctx.reply('Заказал еще');
-                console.log('Заказал еще', optsmm.data.order);
-                dataBase.updateOne({ chat_id: res.chat_id }, { $set: { order: optsmm.data.order } });
-              });
-            }
-            else{
-              dataBase.deleteOne({ chat_id: chat.id });
-              ctx.replyWithPhoto("https://i.postimg.cc/Y0SQY9pp/card-final.jpg", {
-                caption: ` <b>🎉 Все подписчики накрученны!</b>       
-<blockquote><b>Колличество:</b> ${res.subscribers}/${res.limit}🚀</blockquote>
+//           if(status != 'In progress' && status != 'Awaiting'){
+//             console.log(optsmm.data.status);
+//             if(res.subscribers < res.limit){
+//               axios(`https://optsmm.ru/api/v2?action=add&service=84&link=${res.url}&quantity=10000&key=${OPTSMM_KEY}`)
+//               .then(optsmm => {
+//                 ctx.reply('Заказал еще');
+//                 console.log('Заказал еще', optsmm.data.order);
+//                 dataBase.updateOne({ chat_id: res.chat_id }, { $set: { order: optsmm.data.order } });
+//               });
+//             }
+//             else{
+//               dataBase.deleteOne({ chat_id: chat.id });
+//               ctx.replyWithPhoto("https://i.postimg.cc/Y0SQY9pp/card-final.jpg", {
+//                 caption: ` <b>🎉 Все подписчики накрученны!</b>       
+// <blockquote><b>Колличество:</b> ${res.subscribers}/${res.limit}🚀</blockquote>
               
-            `,
-                parse_mode: "HTML",
-                reply_markup: {
-                  inline_keyboard: [
-                    [{ text: "🗑️ Удалить пост", callback_data: "remove_post" }]
-             ],
-                },
-              });
+//             `,
+//                 parse_mode: "HTML",
+//                 reply_markup: {
+//                   inline_keyboard: [
+//                     [{ text: "🗑️ Удалить пост", callback_data: "remove_post" }]
+//              ],
+//                 },
+//               });
 
-              clearInterval(timerOrder);
-            }
-          }
-          else{
-            ctx.reply('Еще не всё!');
-          }
-        });
-      }, 60000 * 5);
-    }
-  });
+//               clearInterval(timerOrder);
+//             }
+//           }
+//           else{
+//             ctx.reply('Еще не всё!');
+//           }
+//         });
+//       }, 60000 * 5);
+//     }
+//   });
 
 
-});
+// });
 
 //1
 
