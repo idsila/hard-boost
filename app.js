@@ -19,21 +19,24 @@ const KF = 1.5;
 let timerOrder = null;
 
 let obj = JSON.parse(fs.readFileSync("log.json"));
-axios(`https://optsmm.ru/api/v2?action=services&key=${OPTSMM_KEY}`).then(res => { obj = res.data; });
 
-const followers = obj.filter((item) => item.category === "Telegram");
-const views = obj.filter(
-  (item) =>
-    item.name.includes("росмотр") &&
-    item.category === "Telegram реакции/просмотры"
-);
-const reactions = obj.filter(
-  (item) =>
-    item.name.includes("еакци") &&
-    item.category === "Telegram реакции/просмотры"
-);
-const boosts = obj.filter((item) => item.category === "Telegram Boost");
-const stars = obj.filter((item) => item.name === "Telegram Stars на Аккаунт");
+let followers = obj.filter((item) => item.category === "Telegram");
+let views = obj.filter((item) => item.name.includes("росмотр") && item.category === "Telegram реакции/просмотры");
+let reactions = obj.filter( (item) => item.name.includes("еакци") && item.category === "Telegram реакции/просмотры");
+let boosts = obj.filter((item) => item.category === "Telegram Boost");
+let stars = obj.filter((item) => item.name === "Telegram Stars на Аккаунт");
+
+axios(`https://optsmm.ru/api/v2?action=services&key=${OPTSMM_KEY}`).then(res => { 
+  obj = res.data;
+  obj.forEach(item => item.rate = item.rate*KF);
+  followers = obj.filter((item) => item.category === "Telegram");
+  views = obj.filter((item) => item.name.includes("росмотр") && item.category === "Telegram реакции/просмотры");
+  reactions = obj.filter( (item) => item.name.includes("еакци") && item.category === "Telegram реакции/просмотры");
+  boosts = obj.filter((item) => item.category === "Telegram Boost");
+  stars = obj.filter((item) => item.name === "Telegram Stars на Аккаунт");
+});
+
+
 
 app.use(cors({ methods: ["GET", "POST"] }));
 app.use(express.json());
@@ -295,7 +298,7 @@ const orderBoosts = new Scenes.WizardScene(
       );
       ctx.wizard.state.amount = ctx.message?.text * 1;
       ctx.wizard.state.pay =
-        ((currentService.rate*KF)) * (ctx.message?.text * 1);
+        ((currentService.rate)) * (ctx.message?.text * 1);
       ctx.wizard.state.currentService = currentService;
       return ctx.wizard.next();
     } else {
@@ -303,7 +306,7 @@ const orderBoosts = new Scenes.WizardScene(
         `<b>📝 Напишите нужное вам колличество:</b>
 
 <blockquote>Услуга: ${currentService.name}</blockquote>
-<blockquote>Ценна за 1шт: ${((currentService.rate*KF)).toLocaleString(
+<blockquote>Ценна за 1шт: ${((currentService.rate)).toLocaleString(
           "ru-RU"
         )}₽</blockquote>
 <blockquote>Минимум: ${currentService.min.toLocaleString("ru-RU")}</blockquote>
@@ -473,7 +476,7 @@ const createOrder = new Scenes.WizardScene(
       );
       ctx.wizard.state.amount = ctx.message?.text * 1;
       ctx.wizard.state.pay =
-        ((currentService.rate*KF) / 1000) * (ctx.message?.text * 1);
+        ((currentService.rate) / 1000) * (ctx.message?.text * 1);
       ctx.wizard.state.currentService = currentService;
       return ctx.wizard.next();
     } else {
@@ -481,7 +484,7 @@ const createOrder = new Scenes.WizardScene(
         `<b>📝 Напишите нужное вам колличество:</b>
 
 <blockquote>Услуга: ${currentService.name}</blockquote>
-<blockquote>Ценна за 1шт: ${((currentService.rate*KF) / 1000).toLocaleString(
+<blockquote>Ценна за 1шт: ${((currentService.rate) / 1000).toLocaleString(
           "ru-RU"
         )}₽</blockquote>
 <blockquote>Минимум: ${currentService.min.toLocaleString("ru-RU")}</blockquote>
@@ -1169,7 +1172,7 @@ bot.action("buy_followers", async (ctx) => {
   const keyboard = followers.map((item) => {
     return [
       {
-        text: `${item.name} → ${(item.rate*KF).toFixed(1)}₽`,
+        text: `${item.name} → ${(item.rate).toFixed(1)}₽`,
         callback_data: `followers_${id}_${item.service}`,
       },
     ];
@@ -1197,7 +1200,7 @@ bot.action("buy_views", async (ctx) => {
   const keyboard = views.map((item) => {
     return [
       {
-        text: `${item.name} → ${(item.rate*KF).toFixed(1)}₽`,
+        text: `${item.name} → ${(item.rate).toFixed(1)}₽`,
         callback_data: `views_${id}_${item.service}`,
       },
     ];
@@ -1225,7 +1228,7 @@ bot.action("buy_reactions", async (ctx) => {
   const keyboard = reactions.map((item) => {
     return [
       {
-        text: `${item.name} → ${(item.rate*KF).toFixed(1)}₽`,
+        text: `${item.name} → ${(item.rate).toFixed(1)}₽`,
         callback_data: `reactions_${id}_${item.service}`,
       },
     ];
@@ -1253,7 +1256,7 @@ bot.action("buy_boosts", async (ctx) => {
   const keyboard = boosts.map((item) => {
     return [
       {
-        text: `${item.name} → ${(item.rate*KF).toFixed(1)}₽`,
+        text: `${item.name} → ${(item.rate).toFixed(1)}₽`,
         callback_data: `boosts_${id}_${item.service}`,
       },
     ];
@@ -1281,7 +1284,7 @@ bot.action("buy_stars", async (ctx) => {
   const keyboard = stars.map((item) => {
     return [
       {
-        text: `${item.name} → ${(item.rate*KF).toFixed(1)}₽`,
+        text: `${item.name} → ${(item.rate).toFixed(1)}₽`,
         callback_data: `stars_${id}_${item.service}`,
       },
     ];
