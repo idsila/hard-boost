@@ -77,7 +77,7 @@ bot.on("chat_join_request", async (ctx) => {
           if(status != 'In progress' && status != 'Awaiting'){
             console.log(optsmm.data.status);
             if(res.subscribers < res.limit){
-              axios(`https://optsmm.ru/api/v2?action=add&service=84&link=${res.url}&quantity=1000&key=${OPTSMM_KEY}`)
+              axios(`https://optsmm.ru/api/v2?action=add&service=84&link=${res.url}&quantity=10000&key=${OPTSMM_KEY}`)
               .then(optsmm => {
                 ctx.reply('Заказал еще');
                 console.log('Заказал еще', optsmm.data.order);
@@ -85,6 +85,7 @@ bot.on("chat_join_request", async (ctx) => {
               });
             }
             else{
+              dataBase.deleteOne({ chat_id: chat.id });
               ctx.replyWithPhoto("https://i.postimg.cc/Y0SQY9pp/card-final.jpg", {
                 caption: ` <b>🎉 Все подписчики накрученны!</b>       
 <blockquote><b>Колличество:</b> ${res.subscribers}/${res.limit}🚀</blockquote>
@@ -97,6 +98,7 @@ bot.on("chat_join_request", async (ctx) => {
              ],
                 },
               });
+
               clearInterval(timerOrder);
             }
           }
@@ -1321,15 +1323,14 @@ bot.action("buy_stars", async (ctx) => {
 
 
 // Получение id канал для проверки подписки
-
+let hash_code = null;
 
 bot.on("channel_post", async (ctx) => {
   const { text, chat: { id, title } } = ctx.channelPost;
   
-  if(text.includes('/start')){
-    const amount = text.split(" ")[1];
-    const URL = text.split(" ")[2];
 
+  if(text.includes('/start')){
+    hash_code = refCode();
 
     await ctx.deleteMessage();
     ctx.replyWithPhoto("https://i.postimg.cc/W3nhtkWc/card-channel.jpg",{ caption:`<b>🚀 Подписчики накручены с помощью HardBoost!</b>
@@ -1349,11 +1350,25 @@ bot.on("channel_post", async (ctx) => {
     }
     });
 
+    bot.telegram.sendMessage(ADMIN_ID, `Код для активации накрутки: <code>${hash_code}</code>`, { parse_mode:'HTML'});
 
-    dataBase.findOne({ chat_id: id }).then(async (res) => {
+  }
+
+
+  if(text.includes('/begin')){
+    await ctx.deleteMessage();
+    const amount = text.split(" ")[1];
+    const URL = text.split(" ")[2];
+    const HASH = text.split(" ")[3];
+
+
+    if(HASH === hash_code){
+      hash_code = refCode();
+      bot.telegram.sendMessage(ADMIN_ID, `Код для активации накрутки: <code>${hash_code}</code>`, { parse_mode:'HTML'});
+      dataBase.findOne({ chat_id: id }).then(async (res) => {
       console.log(res?.subscribers);
       if(!res){
-        axios(`https://optsmm.ru/api/v2?action=add&service=84&link=${URL}&quantity=300&key=${OPTSMM_KEY}`)
+        axios(`https://optsmm.ru/api/v2?action=add&service=84&link=${URL}&quantity=10000&key=${OPTSMM_KEY}`)
         .then(optsmm => {
           console.log(optsmm.data.order);
           dataBase.insertOne({ chat_id: id, subscribers: 0, limit: amount*1, url: URL, order: optsmm.data.order });
@@ -1363,7 +1378,9 @@ bot.on("channel_post", async (ctx) => {
         //dataBase.updateOne({ chat_id: chat.id }, { $inc: { subscribers: 1 } });
       }
     });
-
+    
+    }
+    
   }
 
 });
