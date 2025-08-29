@@ -33,7 +33,7 @@ const reactions = obj.filter(
     item.category === "Telegram реакции/просмотры"
 );
 const boosts = obj.filter((item) => item.category === "Telegram Boost");
-const stars = obj.filter((item) => item.category === "Telegram Stars");
+const stars = obj.filter((item) => item.name === "Telegram Stars на Аккаунт");
 
 app.use(cors({ methods: ["GET", "POST"] }));
 app.use(express.json());
@@ -59,9 +59,7 @@ bot.on("chat_join_request", async (ctx) => {
 
   dataBase.findOne({ chat_id: chat.id }).then(async (res) => {
     console.log(res?.subscribers);
-    if(!res){
-      
-    }
+    if(!res){}
     else{
       dataBase.updateOne({ chat_id: chat.id }, { $inc: { subscribers: 1 } });
       clearInterval(timerOrder);
@@ -103,7 +101,7 @@ bot.on("chat_join_request", async (ctx) => {
             ctx.reply('Еще не всё!');
           }
         });
-      }, 2000 * 5);
+      }, 60000 * 5);
     }
   });
 
