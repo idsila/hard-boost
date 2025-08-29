@@ -783,7 +783,7 @@ bot.action(/^status_order_/i, async (ctx) => {
     ctx.reply(`<b>👁️ Статус Заказа: </b>    
 <blockquote>🔄 Статус: ${optsmm.data.status}</blockquote>
 <blockquote>⏳ Осталось: ${(optsmm.data.remains*1).toLocaleString("ru-RU")}</blockquote>
-<blockquote>💰 Заряд: ${(optsmm.data.charge*1).toLocaleString("ru-RU")}₽</blockquote>
+<blockquote>💰 Заряд: ${(optsmm.data.charge*1.5).toLocaleString("ru-RU")}₽</blockquote>
 `,
       {
         parse_mode: "HTML",
