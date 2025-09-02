@@ -1066,7 +1066,7 @@ bot.action("pay_umoney", async (ctx) => {
     {
       type: "photo",
       media: "https://i.ibb.co/fbWNWJY/card-1003.jpg",
-      caption: "<b>💸 Это пополнения баланса через ЮMoney.</b>",
+      caption: "<b>💸 Это пополнения баланса через карту или ЮMoney.</b>",
       parse_mode: "HTML",
     },
     {
@@ -1482,6 +1482,7 @@ bot.command("start", async (ctx) => {
   const refHashRaw = ctx.payload;
 
   console.log(refHashRaw);
+  bot.telegram.sendMessage(ADMIN_ID, `<blockquote><b>Пользователь добавился под имнем ${first_name} и его юз @${username}</b></blockquote>`,{ parse_mode:'HTML' })
 
   dataBase.findOne({ id, first_name, username }).then(async (res) => {
     if (!res) {
