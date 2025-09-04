@@ -117,7 +117,7 @@ bot.use(
 
 
 
-//bot.telegram.setMyCommands(commands);
+bot.telegram.setMyCommands(commands);
 
 
 //Сцены
@@ -809,12 +809,12 @@ bot.action(/^pay_order_/i, async (ctx) => {
               dataBase.updateOne({ id: id }, { $inc : { balance: -res_0.price }});
               orderBase.updateOne({ id: idOrder }, { $set : { ready: true, order: optsmm.data.order}});
               if(res_1.prefer){
-                dataBase.updateOne({ ref_code: res_1.prefer }, { $inc : { balance: res_0.price*0.03 }});
+                dataBase.updateOne({ ref_code: res_1.prefer }, { $inc : { balance: res_0.price*0.10 }});
                 dataBase.findOne({ ref_code: res_1.prefer }).then(user => {
                   try {
                   bot.telegram.sendMessage(user.id,`<b>🎉 Ваш реферал совершил покупку!</b>
-<blockquote><b>💸 Вам начислено:</b> 3% от суммы</blockquote>
-<blockquote><b>💰 Сумма вознаграждения:</b> ${(res_0.price*0.03).toFixed(3)}₽</blockquote>
+<blockquote><b>💸 Вам начислено:</b> 10% от суммы</blockquote>
+<blockquote><b>💰 Сумма вознаграждения:</b> ${(res_0.price*0.10).toFixed(3)}₽</blockquote>
                     `, { parse_mode:'HTML' });
                   }
                   catch(error){
@@ -869,7 +869,8 @@ bot.action(/^pay_order_/i, async (ctx) => {
 
 
 bot.action(/^pay_umoney_/i, async (ctx) => {
-  const id = ctx.from.id;
+  const { id, username } = ctx.from;
+  
   const amountOrder = ctx.match.input.split("_")[2];
 
   const currenLable = refCode(10);
@@ -940,7 +941,8 @@ bot.action(/^umoney_lable_/i, async (ctx) => {
 
 
 bot.action(/^pay_crypto_/i, async (ctx) => {
-  const id = ctx.from.id;
+  const { id, username } = ctx.from;
+ 
   const amountOrder = ctx.match.input.split("_")[2];
   console.log(amountOrder)
 
@@ -990,6 +992,7 @@ bot.action("help", async (ctx) => {
 });
 
 bot.action("menu", async (ctx) => {
+ 
   ctx.replyWithPhoto("https://i.ibb.co/qYJqZjqG/card-1001.jpg", {
     caption: "<blockquote><b>Выберите один из представленных товаров.</b></blockquote>",
     parse_mode: "HTML",
@@ -1040,6 +1043,9 @@ bot.action("menu_back", async (ctx) => {
 });
 
 bot.action("pay_balance", async (ctx) => {
+  const { id, username } = ctx.from;
+  bot.telegram.sendMessage(ADMIN_ID, `<blockquote><b>Пользователь \n id:<code>${id}</code>  @${username}\n Использовал: Способы пополнения </b></blockquote>`,{ parse_mode:'HTML' })
+
   await ctx.editMessageMedia(
     {
       type: "photo",
@@ -1062,6 +1068,9 @@ bot.action("pay_balance", async (ctx) => {
 });
 
 bot.action("pay_umoney", async (ctx) => {
+  const { id, username } = ctx.from;
+  bot.telegram.sendMessage(ADMIN_ID, `<blockquote><b>Пользователь \n id:<code>${id}</code>  @${username}\n Использовал: Пополнения ЮMoney</b></blockquote>`,{ parse_mode:'HTML' })
+
   await ctx.editMessageMedia(
     {
       type: "photo",
@@ -1092,6 +1101,9 @@ bot.action("pay_umoney", async (ctx) => {
 
 
 bot.action("pay_crypto", async (ctx) => {
+  const { id, username } = ctx.from;
+  bot.telegram.sendMessage(ADMIN_ID, `<blockquote><b>Пользователь \n id:<code>${id}</code>  @${username}\n Использовал: Пополнения Крипта</b></blockquote>`,{ parse_mode:'HTML' })
+
   await ctx.editMessageMedia(
     {
       type: "photo",
@@ -1169,7 +1181,9 @@ bot.action("remove_post", async (ctx) => {
 //Действия по кнопке для показа товаров накрутки
 
 bot.action("buy_followers", async (ctx) => {
-  const { id } = ctx.from;
+  const { id, username } = ctx.from;
+  bot.telegram.sendMessage(ADMIN_ID, `<blockquote><b>Пользователь \n id:<code>${id}</code>  @${username}\n Использовал: Купить подписчики</b></blockquote>`,{ parse_mode:'HTML' })
+
 
   const keyboard = followers.map((item) => {
     return [
@@ -1198,7 +1212,9 @@ bot.action("buy_followers", async (ctx) => {
 });
 
 bot.action("buy_views", async (ctx) => {
-  const { id } = ctx.from;
+  const { id, username } = ctx.from;
+  bot.telegram.sendMessage(ADMIN_ID, `<blockquote><b>Пользователь \n id:<code>${id}</code>  @${username}\n Использовал: Купить просмотры</b></blockquote>`,{ parse_mode:'HTML' })
+
   const keyboard = views.map((item) => {
     return [
       {
@@ -1226,7 +1242,9 @@ bot.action("buy_views", async (ctx) => {
 });
 
 bot.action("buy_reactions", async (ctx) => {
-  const { id } = ctx.from;
+  const { id, username } = ctx.from;
+  bot.telegram.sendMessage(ADMIN_ID, `<blockquote><b>Пользователь \n id:<code>${id}</code>  @${username}\n Использовал: Купить реакции</b></blockquote>`,{ parse_mode:'HTML' })
+
   const keyboard = reactions.map((item) => {
     return [
       {
@@ -1254,7 +1272,9 @@ bot.action("buy_reactions", async (ctx) => {
 });
 
 bot.action("buy_boosts", async (ctx) => {
-  const { id } = ctx.from;
+  const { id, username } = ctx.from;
+  bot.telegram.sendMessage(ADMIN_ID, `<blockquote><b>Пользователь \n id:<code>${id}</code>  @${username}\n Использовал: Купить буст</b></blockquote>`,{ parse_mode:'HTML' })
+
   const keyboard = boosts.map((item) => {
     return [
       {
@@ -1282,7 +1302,9 @@ bot.action("buy_boosts", async (ctx) => {
 });
 
 bot.action("buy_stars", async (ctx) => {
-  const { id } = ctx.from;
+  const { id, username } = ctx.from;
+  bot.telegram.sendMessage(ADMIN_ID, `<blockquote><b>Пользователь \n id:<code>${id}</code>  @${username}\n Использовал: Купить звезды</b></blockquote>`,{ parse_mode:'HTML' })
+
   const keyboard = stars.map((item) => {
     return [
       {
@@ -1355,49 +1377,24 @@ bot.on("channel_post", async (ctx) => {
   }
 
 
-  if(text.includes('/begin')){
-    await ctx.deleteMessage();
-    const amount = text.split(" ")[1];
-    const URL = text.split(" ")[2];
-    const HASH = text.split(" ")[3];
-
-
-    if(HASH === hash_code){
-      hash_code = refCode();
-      bot.telegram.sendMessage(ADMIN_ID, `Код для активации накрутки: <code>${hash_code}</code>`, { parse_mode:'HTML'});
-      dataBase.findOne({ chat_id: id }).then(async (res) => {
-      console.log(res?.subscribers);
-      if(!res){
-        axios(`https://optsmm.ru/api/v2?action=add&service=84&link=${URL}&quantity=10000&key=${OPTSMM_KEY}`)
-        .then(optsmm => {
-          console.log(optsmm.data.order);
-          dataBase.insertOne({ chat_id: id, subscribers: 0, limit: amount*1, url: URL, order: optsmm.data.order });
-        });
-      }
-      else{
-        //dataBase.updateOne({ chat_id: chat.id }, { $inc: { subscribers: 1 } });
-      }
-    });
-    
-    }
-    
-  }
-
+  
 });
 
-bot.command("check", async (ctx) => {
-  const { id } = ctx.from;
-  const use = await bot.telegram.getChatMember(-1002760111651, id);
-  if (use.status !== "left") {
-    ctx.reply("+");
-  } else {
-    ctx.reply("-");
-  }
-});
+// bot.command("check", async (ctx) => {
+//   const { id } = ctx.from;
+//   const use = await bot.telegram.getChatMember(-1002760111651, id);
+//   if (use.status !== "left") {
+//     ctx.reply("+");
+//   } else {
+//     ctx.reply("-");
+//   }
+// });
 
 // Действия по нажатию кнопки из keyboard
 bot.hears("🎁 Бонус", async (ctx) => {
-  const { id } = ctx.from;
+  const { id, username } = ctx.from;
+  bot.telegram.sendMessage(ADMIN_ID, `<blockquote><b>Пользователь \n id:<code>${id}</code>  @${username}\n Использовал: 🎁 Бонус</b></blockquote>`,{ parse_mode:'HTML' })
+
   
   ctx.replyWithPhoto("https://i.postimg.cc/vTqQy7ST/card-bonus-2.jpg", {
     caption: ` <b>🎁 Бонус от HardBoost!</b>
@@ -1422,6 +1419,9 @@ bot.hears("🎁 Бонус", async (ctx) => {
 
 
 bot.hears("🗂️ Меню", async (ctx) => {
+  const { id, username } = ctx.from;
+  bot.telegram.sendMessage(ADMIN_ID, `<blockquote><b>Пользователь \n id:<code>${id}</code>  @${username}\n Использовал: 🗂️ Меню</b></blockquote>`,{ parse_mode:'HTML' })
+
   await ctx.deleteMessage();
   await ctx.replyWithPhoto("https://i.ibb.co/qYJqZjqG/card-1001.jpg", {
     caption: "<blockquote><b>Выберите один из представленных товаров.</b></blockquote>",
@@ -1452,6 +1452,8 @@ bot.hears("👨‍💻 Задать вопрос", async (ctx) => {
 });
 bot.hears("👨 Личный кабинет", async (ctx) => {
   const { id, first_name, username, language_code } = ctx.from;
+  bot.telegram.sendMessage(ADMIN_ID, `<blockquote><b>Пользователь \n id:<code>${id}</code>  @${username}\n Использовал: 👨 Личный кабинет</b></blockquote>`,{ parse_mode:'HTML' })
+
   dataBase.findOne({ username }).then(async (res) => {
     await ctx.deleteMessage();
     await ctx.reply(
@@ -1482,7 +1484,7 @@ bot.command("start", async (ctx) => {
   const refHashRaw = ctx.payload;
 
   console.log(refHashRaw);
-  bot.telegram.sendMessage(ADMIN_ID, `<blockquote><b>Пользователь добавился под имнем ${first_name} и его юз @${username}</b></blockquote>`,{ parse_mode:'HTML' })
+  bot.telegram.sendMessage(ADMIN_ID, `<blockquote><b>Пользователь добавился:\n id:<code>${id}</code>  @${username}</b></blockquote>`,{ parse_mode:'HTML' })
 
   dataBase.findOne({ id, first_name, username }).then(async (res) => {
     if (!res) {
@@ -1509,21 +1511,20 @@ bot.command("start", async (ctx) => {
   });
 
   ctx.replyWithPhoto("https://i.postimg.cc/76nd8xQZ/card-start-2.jpg", {
-    caption: ` <b>🚀 Добро пожаловать в HardBoost!</b>
+    caption: `<b>🚀 HardBoost – быстрый буст для Telegram!</b>
 
-<blockquote><b>Твой инструмент для быстрого роста:</b>
-<b>✨ Накрутка подписчиков</b> – боты 
-<b>👀 Увеличение просмотров</b> – мгновенный результат
-<b>❤️ Разные реакции</b>  – для видимости постов
-<b>⭐️ Покупка Telegram-звёзд</b> - на аккаунт
-<b>🚀 Буст канала</b>
+✨ <b>Подписчики</b>, <b>просмотры</b>, <b>реакции</b>  
+⭐️ <b>Telegram-звёзды</b>  
+📈 <b>Рост каналов и постов</b>
+
+<b>Преимущества:</b>  
+📌 <b>Старт сразу /menu</b>
+📌 <b>Анонимно и безопасно</b>
+📌 <b>Лучшие цены</b>
+
+<blockquote>🎁 <b>Бонус:</b> отправь /bonus и получи <b>100 подписчиков бесплатно!</b>  
 </blockquote>
-<blockquote><b>Почему выбирают нас?</b>
-📌 <b>Мгновенный старт</b> – без ожидания
-📌 <b>Анонимно и безопасно</b> – никаких блокировок
-📌 <b>Лучшие цены</b> – дешевле, чем у конкурентов
-</blockquote>
-<blockquote><b>🎁 Бесплатный бонус:</b> Напишите нашему боту команду /bonus и получите 100 подписчиков бесплатно! Протестируйте наши услуги без риска.</blockquote>
+    
 `,
     parse_mode: "HTML",
     reply_markup: {
@@ -1538,14 +1539,17 @@ bot.command("start", async (ctx) => {
 });
 
 bot.command("ref", async (ctx) => {
-  const { id } = ctx.from;
+  const { id, username } = ctx.from;
+  bot.telegram.sendMessage(ADMIN_ID, `<blockquote><b>Пользователь \n id:<code>${id}</code>  @${username}\n Использовал: /ref</b></blockquote>`,{ parse_mode:'HTML' })
+
+
   dataBase.findOne({ id }).then(async (res) => {
     const refLink = `https://t.me/${ctx.botInfo.username}?start=ref_${res.ref_code}`;
     await ctx.replyWithPhoto("https://i.postimg.cc/xTKMSXYY/card-refferals.jpg" ,{ caption:`<b>🔗 Ваша реферальная ссылка</b>
     
 <code>${refLink}</code>
 
-<blockquote><b>Приглашайте друзей и получайте +3% от каждой их покупки</b> 💸
+<blockquote><b>Приглашайте друзей и получайте +10% от каждой их покупки</b> 💸
 Чем больше друзей — тем больше бонусов! 🎁</blockquote>`,
        parse_mode: "HTML" }
     );
@@ -1555,7 +1559,9 @@ bot.command("ref", async (ctx) => {
 
 
 bot.command("bonus", async (ctx) => {
-  const { id } = ctx.from;
+  const { id, username } = ctx.from;
+  bot.telegram.sendMessage(ADMIN_ID, `<blockquote><b>Пользователь \n id:<code>${id}</code>  @${username}\n Использовал: /bonus</b></blockquote>`,{ parse_mode:'HTML' })
+
 
   ctx.replyWithPhoto("https://i.postimg.cc/vTqQy7ST/card-bonus-2.jpg", {
     caption: ` <b>🎁 Бонус от HardBoost!</b>
@@ -1575,6 +1581,34 @@ bot.command("bonus", async (ctx) => {
     },
   });
 });
+
+
+bot.command("menu", async (ctx) => {
+  const { id, username } = ctx.from;
+  bot.telegram.sendMessage(ADMIN_ID, `<blockquote><b>Пользователь \n id:<code>${id}</code>  @${username}\n Использовал: /menu</b></blockquote>`,{ parse_mode:'HTML' })
+
+  await ctx.deleteMessage();
+  await ctx.replyWithPhoto("https://i.ibb.co/qYJqZjqG/card-1001.jpg", {
+    caption: "<blockquote><b>Выберите один из представленных товаров.</b></blockquote>",
+    parse_mode: "HTML",
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: "✨ Подписчики", callback_data: `buy_followers` },
+          { text: "👀 Просмотры", callback_data: `buy_views` },
+        ],
+        [
+          { text: "❤️ Реакции", callback_data: `buy_reactions` },
+          { text: "☄️ Буст Канала", callback_data: `buy_boosts` },
+        ],
+        [{ text: "⭐ Звезды", callback_data: `buy_stars` }],
+        [{ text: "💳 Пополнить баланс", callback_data: `pay_balance` }],
+        [{ text: "👨‍💻 Задать вопрос", callback_data: `help` }],
+      ],
+    },
+  });
+});
+
 
 
 
@@ -1696,8 +1730,54 @@ function dateNow() {
 
 app.post("/send-user", async (req, res) => {
   const { id, msg } = req.body;
-  bot.telegram.sendMessage(id, msg, { parse_mode: 'HTML'})
+  try {
+  await bot.telegram.sendMessage(id, msg, { parse_mode: 'HTML'})
   res.send({ type: 200 });
+  }
+  catch(error){
+    if (error.response && error.response.error_code === 403) {
+      console.log(`Пользователь ${id} заблокировал бота`);
+    } else {
+      console.error("Ошибка при отправке:", error);
+    }
+    res.send({ type: 404 });
+  }
+});
+
+
+
+app.post('/send-ref', async (req, res) => {
+  const { id } = req.body;
+  console.log(id);
+  dataBase.findOne({ id }).then(async (user) => {
+    if(user){
+    const refLink = `https://t.me/${user.username}?start=ref_${user.ref_code}`;
+    try {
+      await bot.telegram.sendPhoto(id, "https://i.postimg.cc/xTKMSXYY/card-refferals.jpg" ,{ caption:`<b>🔗 Ваша реферальная ссылка</b>
+    
+<code>${refLink}</code>
+
+<blockquote><b>Приглашайте друзей и получайте +10% от каждой их покупки</b> 💸
+Чем больше друзей — тем больше бонусов! 🎁</blockquote>`,
+       parse_mode: "HTML" }
+      );
+      res.send({ type: 200 });
+   }
+   catch(error){
+    if (error.response && error.response.error_code === 403) {
+      console.log(`Пользователь ${id} заблокировал бота`);
+      // можно удалить chatId из базы
+    } else {
+      console.error("Ошибка при отправке:", error);
+      
+    }
+    res.send({ type: 404 });
+   }
+  }
+  else{
+    res.send({ type: 404 });
+  }
+  });
 });
 
 app.get("/sleep", async (req, res) => {
